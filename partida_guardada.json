@@ -1,0 +1,140 @@
+[
+    {
+        "timestamp": "2025-07-16T13:09:44.495769",
+        "mode": "arcane",
+        "state": {
+            "J1": {
+                "letra_actual": "F",
+                "x": 741,
+                "y": 77.95200000000004,
+                "score": 14,
+                "fallos": 0,
+                "color": [
+                    0,
+                    255,
+                    0
+                ]
+            },
+            "velocidad": 1.6,
+            "tiempo_transcurrido": 15.198021650314331,
+            "fallos_limit": 10
+        }
+    },
+    {
+        "timestamp": "2025-07-16T12:18:56.430762",
+        "mode": "arcane",
+        "state": {
+            "J1": {
+                "letra_actual": "Q",
+                "x": 1067,
+                "y": 100.53223919999817,
+                "score": 20,
+                "fallos": 6,
+                "color": [
+                    0,
+                    255,
+                    0
+                ]
+            },
+            "velocidad": 3.038069999999943,
+            "tiempo_transcurrido": 25.811750650405884,
+            "fallos_limit": 10
+        }
+    },
+    {
+        "timestamp": "2025-07-16T11:59:11.613298",
+        "mode": "versus",
+        "state": {
+            "J1": {
+                "score": 11,
+                "fallos": 1,
+                "color": [
+                    0,
+                    255,
+                    0
+                ]
+            },
+            "J2": {
+                "score": 10,
+                "fallos": 2,
+                "color": [
+                    255,
+                    255,
+                    0
+                ]
+            },
+            "velocidad": 2.2,
+            "tiempo_transcurrido": 49.506229400634766,
+            "time_limit_seconds": 120,
+            "fallos_limit": 10,
+            "current_turn_player": "J1",
+            "active_letter": "L",
+            "active_letter_x": 700,
+            "active_letter_y": 70.488
+        }
+    },
+    {
+        "timestamp": "2025-07-16T11:41:22.040018",
+        "mode": "versus",
+        "state": {
+            "J1": {
+                "score": 4,
+                "fallos": 1,
+                "color": [
+                    0,
+                    255,
+                    0
+                ]
+            },
+            "J2": {
+                "score": 3,
+                "fallos": 1,
+                "color": [
+                    255,
+                    255,
+                    0
+                ]
+            },
+            "velocidad": 2.0,
+            "tiempo_transcurrido": 19.564546823501587,
+            "time_limit_seconds": 120,
+            "fallos_limit": 10,
+            "current_turn_player": "J2",
+            "active_letter": "Z",
+            "active_letter_x": 1720,
+            "active_letter_y": 269.63999999999965
+        }
+    },
+    {
+        "timestamp": "2025-07-16T11:40:44.392649",
+        "mode": "versus",
+        "state": {
+            "J1": {
+                "score": 28,
+                "fallos": 1,
+                "color": [
+                    0,
+                    255,
+                    0
+                ]
+            },
+            "J2": {
+                "score": 26,
+                "fallos": 3,
+                "color": [
+                    255,
+                    255,
+                    0
+                ]
+            },
+            "velocidad": 2.5000000000000004,
+            "tiempo_transcurrido": 61.593496561050415,
+            "time_limit_seconds": 60,
+            "fallos_limit": 10,
+            "current_turn_player": "J1",
+            "active_letter": "D",
+            "active_letter_x": 720,
+            "active_letter_y": 190.5000000000002
+        }
+    }
+]
