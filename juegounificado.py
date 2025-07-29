@@ -1,8 +1,8 @@
 import pygame          # Biblioteca principal para el desarrollo de juegos
 import pygame.freetype # Módulo para renderizar fuentes con más control (ej. tamaño)
-import random          # Para generar números aleatorios (letras, posición de estrellas, power-ups)
+import random          # Para generar números aleatorios (letras, posición de estrellas)
 import math            # Para funciones matemáticas (sin para la animación oscilante)
-import time            # Para medir el tiempo (duración de la intro, animaciones, efectos de power-ups)
+import time            # Para medir el tiempo (duración de la intro, animaciones)
 import json            # Para guardar y cargar la configuración del juego en un archivo JSON
 import os              # Para interactuar con el sistema operativo (rutas de archivos)
 import sys             # Para controlar el sistema (salir del juego)
@@ -31,12 +31,6 @@ VERDE = (0, 255, 0)    # Definición del color verde (RGB)
 GRIS_OSCURO = (50, 50, 50) # Nuevo color para el botón
 GRIS_CLARO = (100, 100, 100) # Nuevo color para el botón (hover)
 AMARILLO = (255, 255, 0)
-AZUL = (0,0,255)
-
-# Colores adicionales para los Power-Ups (Solo mantenemos los que funcionan)
-COLOR_CAMARA_LENTA = (173, 216, 230) # Azul claro
-COLOR_ESCUDO = (144, 238, 144) # Verde claro
-COLOR_MULTIPLICADOR = (255, 215, 0) # Oro
 
 colores_disponibles = [ # Lista de colores predefinidos para la personalización
     (255, 255, 255),   # Blanco
@@ -56,56 +50,27 @@ COLOR_GRADIENTE_BOTTOM = (255, 255, 0) # Amarillo brillante
 COLOR_CONTORNO = (0, 0, 0) # Negro para el contorno
 
 # Fuente a usar para los textos con estilo de logo (puedes probar otras como "Impact", "Arial Black")
-FUENTE_LOGO_STYLE = "arial" # Si tienes un archivo .ttf, cárgalo con pygame.freetype.Font("ruta/a/tu_fuente.ttf", tamaño)
-
-# --- Constantes de Power-Ups ---
-MAX_COLLECTED_POWERUPS = 3 # Límite de power-ups que el jugador puede tener en su inventario.
-DURACION_CAMARA_LENTA_EFECTO = 5 # Duración del efecto de cámara lenta
-DURACION_ESCUDO_EFECTO = 8 # Duración del efecto de escudo
-DURACION_MULTIPLICADOR_EFECTO = 7 # Duración del efecto de multiplicador
-FALLOS_ESCUDO_COUNT = 3 # Cuántos fallos absorbe el escudo
-# --- Fin Constantes ---
+FUENTE_LOGO_STYLE = "arial" # Si tienes un archivo .ttf, cárgalo con pygame.freetype.Font("ruta/a/tu/fuente.ttf", tamaño)
 
 # ========================
-# CARGAR FONDOS Y ICONOS
+# CARGAR FONDO
 # ========================
-# Ruta base donde se espera que estén todos los archivos de recursos
-BASE_PATH = os.path.dirname(__file__)
-
 try:
-    ruta_fondo = os.path.join(BASE_PATH, "Fondo2.png")
+    ruta_fondo = os.path.join(os.path.dirname(__file__), "Fondo2.png")
     fondo_img = pygame.image.load(ruta_fondo).convert()
     fondo_img = pygame.transform.scale(fondo_img, (ANCHO, ALTO))
-except Exception as e:
-    print(f"Error al cargar Fondo2.png: {e}")
-    fondo_img = pygame.Surface((ANCHO, ALTO)) # Fondo de respaldo
+except:
+    fondo_img = pygame.Surface((ANCHO, ALTO))
     fondo_img.fill(NEGRO)
 
 try:
-    ruta_fondo_pausa = os.path.join(BASE_PATH, "fondo.jpg")
+    ruta_fondo_pausa = os.path.join(os.path.dirname(__file__), "Fondo2.png")
     fondo_pausa_img = pygame.image.load(ruta_fondo_pausa).convert()
     fondo_pausa_img = pygame.transform.scale(fondo_pausa_img, (ANCHO, ALTO))
 except Exception as e:
-    print(f"Error al cargar fondo.jpg: {e}")
-    fondo_pausa_img = None # Si falla, no hay imagen de pausa
+    print(f"Error al cargar el fondo de pausa: {e}")
+    fondo_pausa_img = None
 
-# --- Carga de Íconos de Power-Ups ---
-powerup_icons = {}
-try:
-    # Ruta base para los iconos, asumiendo una carpeta 'assets/icons'
-    icons_base_path = os.path.join(BASE_PATH, "assets", "icons")
-
-    # Cargar y escalar cada ícono. Ajusta los nombres de archivo y el tamaño (40,40) según tus necesidades.
-    # ¡IMPORTANTE! Asegúrate que los archivos estén en minúsculas si así los escribes aquí.
-    powerup_icons['camara_lenta'] = pygame.transform.scale(pygame.image.load(os.path.join(icons_base_path, "camaralenta.png")).convert_alpha(), (40, 40))
-    powerup_icons['escudo'] = pygame.transform.scale(pygame.image.load(os.path.join(icons_base_path, "escudo.png")).convert_alpha(), (40, 40))
-    powerup_icons['multiplicador'] = pygame.transform.scale(pygame.image.load(os.path.join(icons_base_path, "doblep.png")).convert_alpha(), (40, 40))
-    
-    print("Íconos de power-up cargados exitosamente.")
-
-except Exception as e:
-    print(f"Advertencia: No se pudieron cargar uno o más íconos de power-up. Se usará texto como respaldo. Error: {e}")
-    powerup_icons = {} # Si algo falla, el diccionario queda vacío y se usa texto
 
 # ========================
 # ESTRELLAS ANIMADAS
@@ -163,14 +128,12 @@ music_loaded = False
 acierto_sound = None
 fallo_sound = None
 game_over_sound = None
-powerup_sound = None # Agregamos sonido para power-ups
 
 try:
-    acierto_sound = pygame.mixer.Sound(os.path.join(BASE_PATH, "acierto.wav"))
-    fallo_sound = pygame.mixer.Sound(os.path.join(BASE_PATH, "fallo.wav"))
-    game_over_sound = pygame.mixer.Sound(os.path.join(BASE_PATH, "game_over.wav"))
-    powerup_sound = pygame.mixer.Sound(os.path.join(BASE_PATH, "powerup.wav")) # Sonido para power-ups
-    pygame.mixer.music.load(os.path.join(BASE_PATH, "musica_fondo.mp3"))
+    acierto_sound = pygame.mixer.Sound(os.path.join(os.path.dirname(__file__), "acierto.wav"))
+    fallo_sound = pygame.mixer.Sound(os.path.join(os.path.dirname(__file__), "fallo.wav"))
+    game_over_sound = pygame.mixer.Sound(os.path.join(os.path.dirname(__file__), "game_over.wav"))
+    pygame.mixer.music.load(os.path.join(os.path.dirname(__file__), "musica_fondo.mp3"))
     pygame.mixer.music.set_volume(0.5)
     music_loaded = True
 except Exception as e:
@@ -198,47 +161,48 @@ def cargar_config():
 # ========================
 # FUNCIONES DE GUARDAR/CARGAR PARTIDA
 # ========================
-def guardar_partida(estado_juego, game_mode):
-    """Guarda el estado actual del juego en un archivo JSON."""
-    saved_games = []
-    if os.path.exists("partida_guardada.json"):
-        try:
-            with open("partida_guardada.json", "r") as f:
-                content = f.read()
-                if content:
-                    loaded_data = json.loads(content)
-                    if isinstance(loaded_data, list):
-                        saved_games = loaded_data
-                    elif isinstance(loaded_data, dict):
-                        saved_games = [loaded_data]
-                    else:
-                        print(f"Advertencia: Contenido inesperado en partida_guardada.json. Tipo: {type(loaded_data)}. Creando nuevo archivo.")
-                        saved_games = []
-                else:
-                    saved_games = []
-        except (json.JSONDecodeError, FileNotFoundError):
-            print("Archivo de guardado corrupto o no encontrado, se creará uno nuevo.")
-            saved_games = []
-    
-    new_save = {
-        "timestamp": datetime.now().isoformat(),
-        "mode": game_mode,
-        "state": estado_juego
-    }
-    
-    saved_games.append(new_save)
-    
-    saved_games = [s for s in saved_games if isinstance(s, dict) and 'timestamp' in s]
+def guardar_partida(estado_juego, game_mode, timestamp_a_actualizar=None):
+    """
+    Guarda el estado actual del juego.
+    Si se proporciona un timestamp, actualiza esa partida.
+    Si no, crea una nueva.
+    """
+    saved_games = cargar_partida()  # Reutilizamos la función de carga para obtener la lista actual
 
-    saved_games.sort(key=lambda x: x['timestamp'], reverse=True)
+    if timestamp_a_actualizar:
+        # Modo actualización: Buscar la partida existente y actualizar su estado.
+        partida_actualizada = False
+        for game in saved_games:
+            if game.get("timestamp") == timestamp_a_actualizar:
+                game["state"] = estado_juego
+                partida_actualizada = True
+                print(f"Partida '{timestamp_a_actualizar}' actualizada.")
+                break
+        
+        # Si por alguna razón no se encontró la partida, la creamos como nueva para no perder el progreso.
+        if not partida_actualizada:
+            timestamp_a_actualizar = None # Forzamos la creación de una nueva partida
+
+    if not timestamp_a_actualizar:
+        # Modo creación: Añadir una nueva partida a la lista.
+        new_save = {
+            "timestamp": datetime.now().isoformat(),
+            "mode": game_mode,
+            "state": estado_juego
+        }
+        saved_games.append(new_save)
+        print("Nueva partida guardada.")
+
+    # Ordenar y mantener solo las 5 más recientes
+    saved_games.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
     saved_games = saved_games[:5]
 
     try:
         with open("partida_guardada.json", "w") as f:
             json.dump(saved_games, f, indent=4)
-        print("Partida guardada exitosamente.")
     except Exception as e:
         print(f"Error al guardar la partida: {e}")
+
 
 def cargar_partida():
     """Carga el estado del juego desde un archivo JSON."""
@@ -294,10 +258,18 @@ def guardar_highscores(scores):
         json.dump(scores, f, indent=4)
 
 def check_if_highscore(score):
-    """Verifica si una puntuación es suficientemente alta para estar en el top 5."""
-    highscores = cargar_highscores()
-    if len(highscores) < 5 or score > highscores[-1]['score']:
+    """Verifica si una puntuación es suficientemente alta para estar en el Top 5."""
+    highscores = cargar_highscores() # Carga las puntuaciones ordenadas de mayor a menor
+
+    # Condición 1: Si hay menos de 5 puntuaciones guardadas, el nuevo récord es automático.
+    if len(highscores) < 5:
         return True
+    
+    # Condición 2: Si ya hay 5 o más, la nueva puntuación debe ser mayor que la del 5to lugar.
+    # El índice 4 corresponde al quinto lugar (0=1ro, 1=2do, ..., 4=5to).
+    elif score > highscores[4]['score']:
+        return True
+        
     return False
 # --- FIN: CÓDIGO AGREGADO ---
 
@@ -314,9 +286,9 @@ def render_text_gradient(font, text, target_rect, surface, gradient_colors, bord
     for ox, oy in offsets:
         text_surf_border, text_rect_border = font.render(text, border_color)
         text_rect_border.center = (target_rect.centerx + ox, target_rect.centery + oy)
-        surface.blit(text_surf_border, text_rect_border)    
+        surface.blit(text_surf_border, text_rect_border) 
 
-    text_size_for_gradient = font.get_rect(text).size    
+    text_size_for_gradient = font.get_rect(text).size 
     temp_surf_gradient = pygame.Surface(text_size_for_gradient, pygame.SRCALPHA)
     temp_surf_gradient_rect = temp_surf_gradient.get_rect()
 
@@ -355,7 +327,7 @@ class Button:
         self.border_thickness = border_thickness
         self.is_hovered = False
         self.border_radius = border_radius
-        self.use_logo_style = False    
+        self.use_logo_style = False 
         self.logo_style_gradient_colors = [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM]
         self.logo_style_border_color = COLOR_CONTORNO
         self.logo_style_border_thickness = 2
@@ -372,13 +344,13 @@ class Button:
         pygame.draw.rect(surface, self.border_color, self.rect, self.border_thickness, border_radius=self.border_radius)
 
         if self.use_logo_style:
-            render_text_gradient(self.font, self.text, self.rect, surface,    
-                                 self.logo_style_gradient_colors,    
-                                 self.logo_style_border_color,    
+            render_text_gradient(self.font, self.text, self.rect, surface, 
+                                 self.logo_style_gradient_colors, 
+                                 self.logo_style_border_color, 
                                  self.logo_style_border_thickness)
         else:
             text_surface, text_rect = self.font.render(self.text, BLANCO)
-            text_rect.center = self.rect.center    
+            text_rect.center = self.rect.center 
             surface.blit(text_surface, text_rect)
 
     def handle_event(self, event):
@@ -388,65 +360,6 @@ class Button:
             if self.is_hovered:
                 return True
         return False
-
-# Clase PowerUp
-class PowerUp:
-    # Ahora el init recibe el diccionario de iconos
-    def __init__(self, x, y, tipo, letra_asociada, font, powerup_icons_dict): # <-- NUEVO PARÁMETRO
-        self.x = x
-        self.y = y
-        self.tipo = tipo # 'camara_lenta', 'escudo', 'multiplicador'
-        self.letra_asociada = letra_asociada # Letra que hay que teclear para activarlo
-        self.font = font
-        self.velocidad = 1.0 # Velocidad de caída base de los power-ups
-        self.activo = True # Para saber si aún está cayendo
-        
-        self.pu_size = 50 # Tamaño del power-up para el dibujo
-
-        # Asigna el ícono si existe, de lo contrario, se usará el símbolo de texto
-        self.icon = powerup_icons_dict.get(self.tipo) # <-- ASIGNA EL ÍCONO
-        
-        # Definir el color y un símbolo/texto específico para el power-up
-        if self.tipo == 'camara_lenta':
-            self.color = COLOR_CAMARA_LENTA
-            self.simbolo = "SL" # Slow
-        elif self.tipo == 'escudo':
-            self.color = COLOR_ESCUDO
-            self.simbolo = "SH" # Shield
-        elif self.tipo == 'multiplicador':
-            self.color = COLOR_MULTIPLICADOR
-            self.simbolo = "x2" # Multiplier
-        else: # Si el tipo no coincide con los que quedan, usa blanco y '?'
-            self.color = BLANCO
-            self.simbolo = "?"
-        
-    def update(self, dt):
-        # El power-up cae a su propia velocidad, no afectado por la velocidad de las letras
-        self.y += self.velocidad * 60 * dt
-        if self.y > ALTO:
-            self.activo = False # Desactivar si se sale de la pantalla
-
-    def draw(self, surface):
-        if self.activo:
-            # Dibuja el fondo del power-up (un rectángulo con borde)
-            pygame.draw.rect(surface, self.color, (self.x, self.y, self.pu_size, self.pu_size), border_radius=5)
-            pygame.draw.rect(surface, BLANCO, (self.x, self.y, self.pu_size, self.pu_size), 2, border_radius=5) # Borde
-
-            # Dibuja la letra asociada para activar el power-up
-            letra_surf, letra_rect = self.font.render(self.letra_asociada, NEGRO)  
-            letra_rect.center = (self.x + self.pu_size // 2, self.y + self.pu_size // 2 - 10)
-            surface.blit(letra_surf, letra_rect)
-
-            # --- Dibuja el Ícono o el Símbolo de Texto ---
-            if self.icon: # Si tenemos un ícono cargado para este power-up
-                icon_rect = self.icon.get_rect(center=(self.x + self.pu_size // 2, self.y + self.pu_size // 2 + 15))
-                surface.blit(self.icon, icon_rect)
-            else: # Si no hay ícono (o no se cargó), usa el texto
-                simbolo_font = pygame.freetype.SysFont("arial", 20)  
-                simbolo_surf, simbolo_rect = simbolo_font.render(self.simbolo, NEGRO)
-                simbolo_rect.center = (self.x + self.pu_size // 2, self.y + self.pu_size // 2 + 15)
-                surface.blit(simbolo_surf, simbolo_rect)
-
 
 # ========================
 # PANTALLA INTRODUCCIÓN
@@ -460,13 +373,12 @@ def pantalla_intro():
 
     logo_img = None
     try:
-        # Aquí también usaremos BASE_PATH para la ruta del logo
-        ruta_logo = os.path.join(BASE_PATH, "logotipo.png")
+        ruta_logo = os.path.join(os.path.dirname(__file__), "Logotipo.png")
         logo_img = pygame.image.load(ruta_logo).convert_alpha()
-        logo_img = pygame.transform.scale(logo_img, (ANCHO, ALTO)) # Ajustar tamaño si es necesario
+        logo_img = pygame.transform.scale(logo_img, (ANCHO, ALTO))
     except Exception as e:
-        print(f"Error cargando logo.png: {e}")
-        return # Si el logo no carga, no continuamos la intro
+        print(f"Error cargando el logo: {e}")
+        return
 
     start_time = time.time()
     
@@ -480,7 +392,7 @@ def pantalla_intro():
             if evento.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if evento.type == pygame.KEYDOWN and evento.key == pygame.K_RETURN:
+            if evento.type == pygame.K_RETURN:
                 return
 
         pantalla.blit(fondo_img, (0, 0))
@@ -497,7 +409,7 @@ def pantalla_intro():
 
         alpha_logo = max(0, min(255, alpha_logo))
 
-        if logo_img: # Solo intentamos dibujar si se cargó
+        if logo_img:
             logo_img.set_alpha(alpha_logo)
             pantalla.blit(logo_img, (0, 0))
 
@@ -530,16 +442,17 @@ def pantalla_configuracion(config):
     btn_fuente_right = Button(ANCHO//2 + 160, 150 + 2*50, 40, 40, ">", fuente_ui_btns_flecha, GRIS_OSCURO, GRIS_CLARO, border_radius=5)
     btn_color_left = Button(ANCHO//2 - 200, 150 + 3*50, 40, 40, "<", fuente_ui_btns_flecha, GRIS_OSCURO, GRIS_CLARO, border_radius=5)
     btn_color_right = Button(ANCHO//2 + 160, 150 + 3*50, 40, 40, ">", fuente_ui_btns_flecha, GRIS_OSCURO, GRIS_CLARO, border_radius=5)
-    btn_guardar = Button(ANCHO//2 - 130, ALTO - 100, 260, 60, "GUARDAR Y CONTINUAR", fuente_guardar_btn, GRIS_OSCURO, GRIS_CLARO)    
+    btn_guardar = Button(ANCHO//2 - 130, ALTO - 100, 260, 60, "GUARDAR Y CONTINUAR", fuente_guardar_btn, GRIS_OSCURO, GRIS_CLARO) 
     btn_guardar.set_logo_style(True, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 2)
 
     while True:
         pantalla.blit(fondo_img, (0, 0))
         dibujar_estrellas()
 
+        # Se crea la fuente para previsualización con los valores actuales
         fuente_letras = pygame.freetype.SysFont(nombre_fuente, tam)
         tiempo_actual = time.time() - start_time
-        desplazamiento_y = int(10 * math.sin(tiempo_actual * 2)) 
+        desplazamiento_y = int(10 * math.sin(tiempo_actual * 2))
         y_base = 100
         separacion = 50
 
@@ -629,17 +542,14 @@ def pantalla_menu_principal():
     fuente_opciones_estilo = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 30)
 
     try:
-        # Usamos BASE_PATH para la ruta del logo
-        ruta_logo = os.path.join(BASE_PATH, "logo.png")
-        logo_img = pygame.image.load(ruta_logo).convert_alpha()
-        logo_img = pygame.transform.scale(logo_img, (ANCHO, ALTO)) # Ajustar tamaño si es necesario
+        logo_img = pygame.image.load(os.path.join(os.path.dirname(__file__), "remove.png")).convert_alpha()
     except Exception as e:
         print(f"Error al cargar logo.png: {e}")
         logo_img = None
 
     button_width = 280
     button_height = 60
-    button_y_start = ALTO // 2 - 50    
+    button_y_start = ALTO // 2 - 50 
     button_spacing = 80
 
     btn_modos_juego = Button(ANCHO // 2 - button_width//2, button_y_start, button_width, button_height, "MODOS DE JUEGO", fuente_opciones_estilo, GRIS_OSCURO, GRIS_CLARO)
@@ -682,7 +592,7 @@ def pantalla_menu_principal():
         dibujar_estrellas(0.5)
 
         # Dibujar el logo primero, en la parte superior de la pantalla
-        if logo_img: # Solo dibujamos si se cargó correctamente
+        if logo_img:
             logo_width = 500
             scale_factor = logo_width / logo_img.get_width()
             scaled_logo = pygame.transform.smoothscale(logo_img, (int(logo_img.get_width() * scale_factor), int(logo_img.get_height() * scale_factor)))
@@ -691,7 +601,7 @@ def pantalla_menu_principal():
         else:
             # Fallback a texto si no se carga la imagen
             fuente_titulo_estilo = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 80)
-            titulo_rect = pygame.Rect(0, 0, ANCHO, 100)    
+            titulo_rect = pygame.Rect(0, 0, ANCHO, 100) 
             titulo_rect.center = (ANCHO // 2, ALTO // 4)
             render_text_gradient(fuente_titulo_estilo, "SPEEDTYPE", titulo_rect, pantalla, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 4)
         
@@ -930,9 +840,9 @@ def pantalla_de_pausa():
             if btn_salir_sin_guardar.handle_event(evento): return "salir_sin_guardar"
 
 # ========================
-# GAME OVER
+# GAME OVER Y PANTALLA DE RESULTADOS
 # ========================
-def game_over(score, aciertos, fallos, fuente_ui_juego_normal):
+def pantalla_fin_juego(score, aciertos, fallos, num_jugadores, scores_j1=None, scores_j2=None):
     fuente_ui_go_text = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 40)
     fuente_ui_go_stats = pygame.freetype.SysFont("arial", 30)
     fuente_ui_go_btns = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 30)
@@ -950,50 +860,121 @@ def game_over(score, aciertos, fallos, fuente_ui_juego_normal):
                 sys.exit()
         pygame.time.delay(100)
 
-    if check_if_highscore(score):
-        pantalla_ingresar_nombre(score)
-        pantalla_highscores()
-        return True
-
-    btn_reiniciar = Button(ANCHO // 2 - 150, ALTO // 2 + 80, 140, 60, "REINICIAR", fuente_ui_go_btns, GRIS_OSCURO, GRIS_CLARO)
-    btn_reiniciar.set_logo_style(True, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 2)
-
-    btn_salir_go = Button(ANCHO // 2 + 10, ALTO // 2 + 80, 140, 60, "SALIR", fuente_ui_go_btns, GRIS_OSCURO, GRIS_CLARO)
-    btn_salir_go.set_logo_style(True, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 2)
-
-    while True:
-        for evento in pygame.event.get():
-            if evento.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if btn_reiniciar.handle_event(evento):
-                return True
-            if btn_salir_go.handle_event(evento):
-                pygame.quit()
-                sys.exit()
-
-        pantalla.blit(fondo_img, (0, 0))
-        dibujar_estrellas()
-
-        total = aciertos + fallos
-        prec = (aciertos / total) * 100 if total else 0
-
-        t1_rect = pygame.Rect(0, 0, ANCHO, 50)
-        t1_rect.center = (ANCHO // 2, 200)
-        render_text_gradient(fuente_ui_go_text, "¡GAME OVER!", t1_rect, pantalla, [ROJO, (255, 100, 0)], COLOR_CONTORNO, 3)
-
-        t2_surf, t2_rect = fuente_ui_go_stats.render(f"Puntaje: {score}", BLANCO)
-        t3_surf, t3_rect = fuente_ui_go_stats.render(f"Aciertos: {aciertos} Fallos: {fallos} Precisión: {prec:.2f}%", BLANCO)
-
-        pantalla.blit(t2_surf, (ANCHO//2 - t2_surf.get_width()//2, 250))    
-        pantalla.blit(t3_surf, (ANCHO//2 - t3_surf.get_width()//2, 300))    
+    # Lógica para game over de 1 jugador (Arcane)
+    if num_jugadores == 1:
+        if check_if_highscore(score):
+            pantalla_ingresar_nombre(score)
+            pantalla_highscores()
+            return "menu_principal"
         
-        btn_reiniciar.draw(pantalla)
-        btn_salir_go.draw(pantalla)
+        btn_reiniciar = Button(ANCHO // 2 - 150, ALTO // 2 + 80, 140, 60, "REINICIAR", fuente_ui_go_btns, GRIS_OSCURO, GRIS_CLARO)
+        btn_reiniciar.set_logo_style(True, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 2)
+        btn_salir_go = Button(ANCHO // 2 + 10, ALTO // 2 + 80, 140, 60, "SALIR", fuente_ui_go_btns, GRIS_OSCURO, GRIS_CLARO)
+        btn_salir_go.set_logo_style(True, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 2)
 
-        pygame.display.flip()
-        clock.tick(60)
+        while True:
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if btn_reiniciar.handle_event(evento):
+                    return "reiniciar"
+                if btn_salir_go.handle_event(evento):
+                    return "menu_principal"
 
+            pantalla.blit(fondo_img, (0, 0))
+            dibujar_estrellas()
+
+            total = aciertos + fallos
+            prec = (aciertos / total) * 100 if total else 0
+
+            t1_rect = pygame.Rect(0, 0, ANCHO, 50)
+            t1_rect.center = (ANCHO // 2, 200)
+            render_text_gradient(fuente_ui_go_text, "¡GAME OVER!", t1_rect, pantalla, [ROJO, (255, 100, 0)], COLOR_CONTORNO, 3)
+
+            t2_surf, t2_rect = fuente_ui_go_stats.render(f"Puntaje: {score}", BLANCO)
+            t3_surf, t3_rect = fuente_ui_go_stats.render(f"Aciertos: {aciertos} Fallos: {fallos} Precisión: {prec:.2f}%", BLANCO)
+
+            pantalla.blit(t2_surf, (ANCHO//2 - t2_surf.get_width()//2, 250)) 
+            pantalla.blit(t3_surf, (ANCHO//2 - t3_surf.get_width()//2, 300)) 
+            
+            btn_reiniciar.draw(pantalla)
+            btn_salir_go.draw(pantalla)
+
+            pygame.display.flip()
+            clock.tick(60)
+
+    # Lógica para pantalla de resultados de 2 jugadores (Versus)
+    else: # num_jugadores == 2
+        fuente_resultado_titulo = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 60)
+        fuente_resultado_texto = pygame.freetype.SysFont("arial", 40)
+        fuente_botones = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 30)
+
+        score_j1 = scores_j1
+        score_j2 = scores_j2
+
+        if score_j1 > score_j2:
+            ganador = "JUGADOR 1"
+            color_ganador = VERDE
+        elif score_j2 > score_j1:
+            ganador = "JUGADOR 2"
+            color_ganador = AMARILLO
+        else:
+            ganador = "EMPATE"
+            color_ganador = BLANCO
+
+        btn_reiniciar = Button(ANCHO // 2 - 160, ALTO - 160, 150, 60, "REINICIAR", fuente_botones, GRIS_OSCURO, GRIS_CLARO)
+        btn_reiniciar.set_logo_style(True, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 2)
+        btn_menu = Button(ANCHO // 2 + 10, ALTO - 160, 150, 60, "MENÚ", fuente_botones, GRIS_OSCURO, GRIS_CLARO)
+        btn_menu.set_logo_style(True, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 2)
+
+        while True:
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if btn_reiniciar.handle_event(evento):
+                    return "reiniciar"
+                if btn_menu.handle_event(evento):
+                    return "menu_principal"
+                if evento.type == pygame.KEYDOWN and evento.key == pygame.K_ESCAPE:
+                    return "menu_principal"
+
+            pantalla.blit(fondo_img, (0, 0))
+            dibujar_estrellas()
+
+            rect_titulo = pygame.Rect(0, 0, ANCHO, 80)
+            rect_titulo.center = (ANCHO // 2, 100)
+            render_text_gradient(fuente_resultado_titulo, "RESULTADOS FINALES", rect_titulo, pantalla, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 4)
+
+            texto_j1 = f"JUGADOR 1: {score_j1} pts"
+            texto_j2 = f"JUGADOR 2: {score_j2} pts"
+            surf_j1, _ = fuente_resultado_texto.render(texto_j1, VERDE)
+            surf_j2, _ = fuente_resultado_texto.render(texto_j2, AMARILLO)
+            pantalla.blit(surf_j1, (ANCHO // 4 - surf_j1.get_width() // 2, 200))
+            pantalla.blit(surf_j2, (3 * ANCHO // 4 - surf_j2.get_width() // 2, 200))
+
+            if ganador != "EMPATE":
+                pygame.draw.rect(
+                    pantalla, color_ganador,
+                    pygame.Rect(
+                        (ANCHO // 4 if ganador == "JUGADOR 1" else 3 * ANCHO // 4) - 160,
+                        190, 320, 60
+                    ), 4, border_radius=10
+                )
+
+            fuente_ganador = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 50)
+            rect_ganador = pygame.Rect(0, 0, ANCHO, 80)
+            rect_ganador.center = (ANCHO // 2, 320)
+            render_text_gradient(fuente_ganador, f"GANADOR: {ganador}", rect_ganador, pantalla, [color_ganador, BLANCO], COLOR_CONTORNO, 3)
+
+            btn_reiniciar.draw(pantalla)
+            btn_menu.draw(pantalla)
+
+            pygame.display.flip()
+            clock.tick(60)
+
+    
 # ========================
 # FUNCIONES DE UI DEL JUEGO
 # ========================
@@ -1022,11 +1003,11 @@ def confirmar_salida(fuente_ui_para_confirmacion):
                 pygame.quit()
                 sys.exit()
             if btn_si.handle_event(evento):
-                return True    
+                return True 
             if btn_no.handle_event(evento):
                 if music_loaded:
                     pygame.mixer.music.unpause()
-                return False    
+                return False 
 
         pantalla.blit(fondo_img, (0, 0))
         dibujar_estrellas()
@@ -1063,26 +1044,6 @@ def mostrar_conteo_regresivo(segundos, fuente, color):
 
         pygame.display.flip()
         pygame.time.delay(1000)
-
-# Función para mostrar el anuncio de nivel
-def mostrar_anuncio_nivel(nivel, fuente_conteo, duracion_segundos=2):
-    superficie_oscura = pygame.Surface((ANCHO, ALTO), pygame.SRCALPHA)
-    superficie_oscura.fill((0, 0, 0, 180)) # Semi-transparente
-
-    start_time = time.time()
-    while time.time() - start_time < duracion_segundos:
-        pantalla.blit(fondo_img, (0, 0))
-        dibujar_estrellas(0.5)
-        pantalla.blit(superficie_oscura, (0, 0))
-
-        # Texto del nivel con el estilo de degradado
-        nivel_texto = f"NIVEL {nivel}"
-        texto_rect = pygame.Rect(0, 0, ANCHO, ALTO)
-        render_text_gradient(fuente_conteo, nivel_texto, texto_rect, pantalla,
-                             [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 5)
-
-        pygame.display.flip()
-        clock.tick(60)
 
 # --- INICIO: CÓDIGO AGREGADO PARA PANTALLAS DE PUNTUACIÓN ---
 def pantalla_ingresar_nombre(score):
@@ -1153,7 +1114,7 @@ def pantalla_highscores():
                 sys.exit()
             if btn_volver.handle_event(evento):
                 scores_run = False
-            if evento.type == pygame.K_ESCAPE: # Added escape key for highscores too
+            if evento.type == pygame.KEYDOWN and evento.key == pygame.K_ESCAPE:
                 scores_run = False
 
         pantalla.blit(fondo_img, (0, 0))
@@ -1182,59 +1143,19 @@ def pantalla_highscores():
 # --- FIN: CÓDIGO AGREGADO ---
 
 # ========================
-# FUNCIÓN PARA DIBUJAR ESPACIOS DE POWER-UPS RECOLECTADOS
-# ========================
-def draw_powerup_slots(surface, collected_powerups_list, powerup_icons_dict, font_ui):
-    slot_size = 60
-    slot_padding = 10
-    start_x = ANCHO // 2 - (MAX_COLLECTED_POWERUPS * (slot_size + slot_padding)) // 2 # Centra los espacios
-    start_y = ALTO - slot_size - 20 # Posiciona cerca de la parte inferior central
-
-    buttons_for_activation = []
-
-    for i, pu_type in enumerate(collected_powerups_list):
-        slot_x = start_x + i * (slot_size + slot_padding)
-        slot_rect = pygame.Rect(slot_x, start_y, slot_size, slot_size)
-
-        # Dibuja el fondo del espacio
-        pygame.draw.rect(surface, GRIS_OSCURO, slot_rect, border_radius=5)
-        pygame.draw.rect(surface, BLANCO, slot_rect, 2, border_radius=5)
-
-        # Dibuja el ícono si está disponible, de lo contrario, dibuja un marcador de posición de texto
-        icon_to_draw = powerup_icons_dict.get(pu_type)
-        if icon_to_draw:
-            icon_rect = icon_to_draw.get_rect(center=slot_rect.center)
-            surface.blit(icon_to_draw, icon_rect)
-        else:
-            # Texto de respaldo si el ícono no se encuentra
-            fallback_text = ""
-            if pu_type == 'camara_lenta': fallback_text = "SL"
-            elif pu_type == 'escudo': fallback_text = "SH"
-            elif pu_type == 'multiplicador': fallback_text = "x2"
-            
-            text_surf, text_rect = font_ui.render(fallback_text, BLANCO)
-            text_rect.center = slot_rect.center
-            surface.blit(text_surf, text_rect)
-        
-        # Crea un objeto Button para cada espacio
-        # El texto del botón no es visible, pero el botón maneja la interacción
-        btn = Button(slot_x, start_y, slot_size, slot_size, "", font_ui, GRIS_OSCURO, GRIS_CLARO)
-        btn.rect = slot_rect # Asegura que el rectángulo del botón coincida con el del espacio
-        buttons_for_activation.append((btn, pu_type, i)) # Guarda el botón, el tipo de power-up y el índice
-
-    return buttons_for_activation # Devuelve los botones clickeables
-
-
-# ========================
 # JUEGO ESTÁNDAR
 # ========================
-def jugar(nombre_fuente, tam, color, num_jugadores=2, count_wrong_key_faults=False, time_limit_seconds=0, fallos_limit=10, initial_state=None):
+def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_wrong_key_faults=False, time_limit_seconds=0, fallos_limit=10, initial_state=None, save_timestamp=None):
     fuente_letras = pygame.freetype.SysFont(nombre_fuente, tam)
     fuente_ui = pygame.freetype.SysFont("arial", 30)
     
     fuente_btn_pausa = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 20)
     btn_pausa = Button(ANCHO - 120, 10, 110, 40, "PAUSA", fuente_btn_pausa, GRIS_OSCURO, GRIS_CLARO)
     btn_pausa.set_logo_style(True, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 2)
+    
+    # Parámetros para la animación de oscilación de las letras
+    anim_amplitud = 15  # Píxeles que se moverá la letra a cada lado
+    anim_frecuencia = 5 # Velocidad de la oscilación
     
     racha_actual = 0
 
@@ -1244,188 +1165,55 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, count_wrong_key_faults=Fal
         else:
             pygame.mixer.music.unpause()
 
-    # --- Variables para el sistema de niveles y parámetros de movimiento ---
-    # Los valores de 'velocidad_caida_base' aumentan con cada nivel para incrementar la dificultad
-    parametros_movimiento = {
-        1: {'amplitud': ANCHO * 0.1, 'frecuencia': 0.05, 'velocidad_caida_base': 1.5},
-        2: {'amplitud': ANCHO * 0.15, 'frecuencia': 0.07, 'velocidad_caida_base': 1.8},    
-        3: {'amplitud': ANCHO * 0.1, 'frecuencia': 0.1, 'velocidad_caida_base': 2.2},      
-        4: {'amplitud': ANCHO * 0.08, 'frecuencia': 0.12, 'velocidad_caida_base': 2.5},
-        5: {'amplitud': ANCHO * 0.2, 'frecuencia': 0.06, 'velocidad_caida_base': 2.8},
-        6: {'amplitud': ANCHO * 0.18, 'frecuencia': 0.08, 'velocidad_caida_base': 3.0},
-        7: {'amplitud': ANCHO * 0.25, 'frecuencia': 0.09, 'velocidad_caida_base': 3.2},
-        8: {'amplitud': ANCHO * 0.15, 'frecuencia': 0.2, 'velocidad_caida_base': 3.5},
-        9: {'amplitud': ANCHO * 0.2, 'frecuencia': 0.12, 'velocidad_caida_base': 3.8},
-        10: {'amplitud': ANCHO * 0.3, 'frecuencia': 0.1, 'velocidad_caida_base': 4.0}
-        # Puedes añadir más niveles aquí y ajustar los valores para calibrar la dificultad
-    }
-
-    # --- Variables para Power-ups ---
-    powerups_activos = [] # Power-ups que están cayendo en la pantalla
-    collected_powerups = [] # Power-ups que el jugador ha recolectado y están en su inventario
-    ultimo_powerup_spawn_time = time.time()
-    powerup_spawn_interval = 10  
-    
-    # Efectos de power-up (tiempo_fin del efecto o contador)
-    efecto_camara_lenta_activo_hasta = 0
-    efecto_escudo_activo_hasta = 0
-    efecto_multiplicador_activo_hasta = 0
-    fallos_restantes_escudo = 0
-    puntos_multiplicador = 1 # Multiplicador de puntos actual (1 = normal)
-
-    # Duraciones de los efectos (en segundos) y valores para el escudo
-    DURACION_CAMARA_LENTA = DURACION_CAMARA_LENTA_EFECTO
-    DURACION_ESCUDO = DURACION_ESCUDO_EFECTO
-    DURACION_MULTIPLICADOR = DURACION_MULTIPLICADOR_EFECTO
-    # FALLOS_ESCUDO_COUNT ya está definida como constante arriba.
-
-    # Tipos de power-ups disponibles para aparecer (solo los que mantenemos)
-    tipos_powerup = ['camara_lenta', 'escudo', 'multiplicador']
-
     if num_jugadores == 1:
         game_mode = "arcane"
         if initial_state:
             jugadores = {"J1": initial_state["J1"]}
-            nivel_actual = initial_state.get("nivel_actual", 1)
-            aciertos_para_siguiente_nivel = initial_state.get("aciertos_para_siguiente_nivel", 30)
-            aciertos_en_nivel = initial_state.get("aciertos_en_nivel", 0)
-            fallos_limit = initial_state.get("fallos_limit", fallos_limit)  
-            if "initial_x" not in jugadores["J1"]:
-                current_params_on_load = parametros_movimiento.get(nivel_actual, parametros_movimiento[max(parametros_movimiento.keys())])
-                amplitud_lvl_on_load = current_params_on_load['amplitud']
-                jugadores["J1"]["initial_x"] = random.randint(int(amplitud_lvl_on_load) + 50, ANCHO - 50 - int(amplitud_lvl_on_load) - 50)
-            
-            # Cargar estado de power-ups
-            efecto_camara_lenta_activo_hasta = initial_state.get("eff_sl_until", 0)
-            efecto_escudo_activo_hasta = initial_state.get("eff_sh_until", 0)
-            efecto_multiplicador_activo_hasta = initial_state.get("eff_mul_until", 0)
-            fallos_restantes_escudo = initial_state.get("sh_faults_left", 0)
-            puntos_multiplicador = initial_state.get("pts_multiplier", 1)
-            collected_powerups = initial_state.get("collected_powerups", []) # <-- CARGA LA LISTA DE RECOLECTADOS
-            ultimo_powerup_spawn_time = time.time() # Resetear para evitar aparición inmediata
-            
+            velocidad = initial_state.get("velocidad", initial_speed)
+            tiempo_transcurrido_cargado = initial_state.get("tiempo_transcurrido", 0)
+            fallos_limit = initial_state.get("fallos_limit", fallos_limit)
         else:
-            nivel_actual = 1
-            aciertos_para_siguiente_nivel = 30
-            aciertos_en_nivel = 0
-            jugadores = {"J1": {"letra_actual": chr(random.randint(65, 90)), "x": 0, "y": 0, "score": 0, "fallos": 0, "color": VERDE, "initial_x": 0}}
-            current_params_lvl1 = parametros_movimiento[1] 
-            amplitud_lvl1 = current_params_lvl1['amplitud']
-            jugadores["J1"]["initial_x"] = random.randint(int(amplitud_lvl1) + 50, ANCHO - 50 - int(amplitud_lvl1) - 50)
-            jugadores["J1"]["x"] = jugadores["J1"]["initial_x"]
-            jugadores["J1"]["y"] = 0
-
-    else: # num_jugadores == 2
+            jugadores = {"J1": {"letra_actual": chr(random.randint(65, 90)), "x": random.randint(0, ANCHO - 50), "y": 0, "score": 0, "fallos": 0, "color": color, "anim_offset": random.uniform(0, 2 * math.pi)}}
+            velocidad = initial_speed
+            tiempo_transcurrido_cargado = 0
+    else:
         game_mode = "versus"
+        jugadores = {"J1": {"score": 0, "fallos": 0, "color": VERDE}, "J2": {"score": 0, "fallos": 0, "color": AMARILLO}}
         if initial_state:
-            jugadores = {"J1": initial_state["J1"], "J2": initial_state["J2"]}
+            jugadores["J1"]["score"] = initial_state["J1"]["score"]
+            jugadores["J1"]["fallos"] = initial_state["J1"]["fallos"]
+            jugadores["J2"]["score"] = initial_state["J2"]["score"]
+            jugadores["J2"]["fallos"] = initial_state["J2"]["fallos"]
             current_turn_player = initial_state.get("current_turn_player", "J1")
             active_letter = initial_state.get("active_letter", chr(random.randint(65, 90)))
-            active_letter_x = initial_state.get("active_letter_x", 0)
+            active_letter_x = initial_state.get("active_letter_x", (ANCHO // 4 if current_turn_player == "J1" else 3 * ANCHO // 4) - 25)
             active_letter_y = initial_state.get("active_letter_y", 0)
-            
-            nivel_actual = initial_state.get("nivel_actual", 1)
-            aciertos_para_siguiente_nivel = initial_state.get("aciertos_para_siguiente_nivel", 30)
-            aciertos_en_nivel = initial_state.get("aciertos_en_nivel", 0)
-            
+            velocidad = initial_state.get("velocidad", initial_speed)
+            tiempo_transcurrido_cargado = initial_state.get("tiempo_transcurrido", 0)
             time_limit_seconds = initial_state.get("time_limit_seconds", time_limit_seconds)
-            fallos_limit = initial_state.get("fallos_limit", fallos_limit)  
-
-            if "initial_x_j1" in initial_state:
-                jugadores["J1"]["initial_x_j1"] = initial_state["initial_x_j1"]
-            else:
-                current_params_on_load = parametros_movimiento.get(nivel_actual, parametros_movimiento[max(parametros_movimiento.keys())])
-                amplitud_lvl_on_load = current_params_on_load['amplitud']
-                jugadores["J1"]["initial_x_j1"] = random.randint(int(amplitud_lvl_on_load), (ANCHO // 2) - 50 - int(amplitud_lvl_on_load))
-            
-            if "initial_x_j2" in initial_state:
-                jugadores["J2"]["initial_x_j2"] = initial_state["initial_x_j2"]
-            else:
-                current_params_on_load = parametros_movimiento.get(nivel_actual, parametros_movimiento[max(parametros_movimiento.keys())])
-                amplitud_lvl_on_load = current_params_on_load['amplitud']
-                jugadores["J2"]["initial_x_j2"] = random.randint(ANCHO // 2 + int(amplitud_lvl_on_load), ANCHO - 50 - int(amplitud_lvl_on_load))
-            
-            # Cargar estado de power-ups
-            efecto_camara_lenta_activo_hasta = initial_state.get("eff_sl_until", 0)
-            efecto_escudo_activo_hasta = initial_state.get("eff_sh_until", 0)
-            efecto_multiplicador_activo_hasta = initial_state.get("eff_mul_until", 0)
-            fallos_restantes_escudo = initial_state.get("sh_faults_left", 0)
-            puntos_multiplicador = initial_state.get("pts_multiplier", 1)
-            collected_powerups = initial_state.get("collected_powerups", []) # <-- CARGA LA LISTA DE RECOLECTADOS
-            ultimo_powerup_spawn_time = time.time() # Resetear para evitar aparición inmediata
-            
+            fallos_limit = initial_state.get("fallos_limit", fallos_limit)
         else:
-            nivel_actual = 1
-            aciertos_para_siguiente_nivel = 30
-            aciertos_en_nivel = 0
-            
-            jugadores = {"J1": {"score": 0, "fallos": 0, "color": VERDE, "initial_x_j1": 0}, "J2": {"score": 0, "fallos": 0, "color": AMARILLO, "initial_x_j2": 0}}
             current_turn_player = "J1"
             active_letter = chr(random.randint(65, 90))
+            active_letter_x = random.randint(0, ANCHO // 2 - 50)
             active_letter_y = 0
-
-            current_params_lvl1 = parametros_movimiento[1]
-            amplitud_lvl1 = current_params_lvl1['amplitud']
-            jugadores["J1"]["initial_x_j1"] = random.randint(int(amplitud_lvl1) + 50, (ANCHO // 2) - 50 - int(amplitud_lvl1) - 50)
-            jugadores["J2"]["initial_x_j2"] = random.randint(ANCHO // 2 + int(amplitud_lvl1) + 50, ANCHO - 50 - int(amplitud_lvl1) - 50)
-            
-            active_letter_x = jugadores["J1"]["initial_x_j1"] if current_turn_player == "J1" else jugadores["J2"]["initial_x_j2"]
-
+            velocidad = initial_speed
+            tiempo_transcurrido_cargado = 0
 
     tiempo_inicio_juego = time.time()
     tiempo_pausado_total = 0
+    score_para_velocidad_anterior = 0
+    max_speed = 5.0
     
-    mostrar_anuncio_nivel(nivel_actual, pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 100))
-    mostrar_conteo_regresivo(3, fuente_ui, BLANCO)
-
+    if initial_state:
+        mostrar_conteo_regresivo(3, fuente_ui, BLANCO)
+        tiempo_inicio_juego = time.time()
 
     run = True
     while run:
         tiempo_actual = time.time()
-        tiempo_transcurrido = (tiempo_actual - tiempo_inicio_juego - tiempo_pausado_total)
-
-        current_params = parametros_movimiento.get(nivel_actual, parametros_movimiento[max(parametros_movimiento.keys())])
-        amplitud_lvl = current_params['amplitud']
-        frecuencia_lvl = current_params['frecuencia']
-        velocidad_base_nivel = current_params['velocidad_caida_base']  
-
-        if tiempo_actual > efecto_camara_lenta_activo_hasta:
-            velocidad_actual_de_caida = velocidad_base_nivel
-            efecto_camara_lenta_activo_hasta = 0 
-        else:
-            velocidad_actual_de_caida = velocidad_base_nivel * 0.5 
-            
-        if tiempo_actual - ultimo_powerup_spawn_time > powerup_spawn_interval:
-            tipo_aleatorio = random.choice(tipos_powerup)
-            letra_aleatoria = chr(random.randint(65, 90))
-
-            pu_width = 50 
-            # Ajustamos el rango de spawn_x para asegurar visibilidad en ambos modos y evitar el borde de la pantalla
-            # Se asegura que el power-up no aparezca pegado a los límites de la pantalla,
-            # ni en la línea central en modo 2P, para dejar espacio para la oscilación
-            spawn_x_min = int(amplitud_lvl) + 50
-            spawn_x_max = ANCHO - int(amplitud_lvl) - 50 - pu_width # Restamos pu_width para que no se salga por la derecha
-
-            if num_jugadores == 2:
-                # Si en modo 2P, ajustamos los límites para cada mitad de la pantalla
-                if random.random() < 0.5: # 50% de probabilidad de aparecer en la mitad izquierda (J1)
-                    spawn_x = random.randint(spawn_x_min, (ANCHO // 2) - pu_width - 50) # -50 para no pisar la línea divisoria
-                else: # 50% de probabilidad de aparecer en la mitad derecha (J2)
-                    spawn_x = random.randint((ANCHO // 2) + 50, spawn_x_max) # +50 para no pisar la línea divisoria
-            else: # Modo 1 jugador
-                spawn_x = random.randint(spawn_x_min, spawn_x_max)
-
-            powerups_activos.append(PowerUp(spawn_x, 0, tipo_aleatorio, letra_aleatoria, fuente_letras, powerup_icons))
-            
-            ultimo_powerup_spawn_time = tiempo_actual
-            powerup_spawn_interval = random.randint(15, 30) 
-
-        # --- Dibuja los espacios de Power-Up y obtiene los botones clickeables ---
-        # Corregido: esta línea se ejecuta siempre en cada fotograma del bucle principal
-        clickable_powerup_buttons = draw_powerup_slots(pantalla, collected_powerups, powerup_icons, fuente_ui)
-        # --- Fin de la corrección ---
-
-        # Procesar eventos
+        tiempo_transcurrido = (tiempo_actual - tiempo_inicio_juego - tiempo_pausado_total) + tiempo_transcurrido_cargado
+        
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 pygame.quit()
@@ -1437,78 +1225,16 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, count_wrong_key_faults=Fal
                 tiempo_pausado_total += time.time() - tiempo_inicio_pausa
 
                 if accion_pausa == "guardar_y_salir":
-                    estado_actual = {
-                        "velocidad": velocidad_base_nivel,
-                        "tiempo_transcurrido": tiempo_transcurrido,
-                        "fallos_limit": fallos_limit,
-                        "J1": jugadores["J1"],
-                        "nivel_actual": nivel_actual,
-                        "aciertos_en_nivel": aciertos_en_nivel,
-                        "aciertos_para_siguiente_nivel": aciertos_para_siguiente_nivel,
-                        "eff_sl_until": efecto_camara_lenta_activo_hasta,
-                        "eff_sh_until": efecto_escudo_activo_hasta,
-                        "eff_mul_until": efecto_multiplicador_activo_hasta,
-                        "sh_faults_left": fallos_restantes_escudo,
-                        "pts_multiplier": puntos_multiplicador,
-                        "collected_powerups": collected_powerups, # <-- GUARDA LA LISTA DE RECOLECTADOS
-                    }
+                    estado_actual = {"velocidad": velocidad, "tiempo_transcurrido": tiempo_transcurrido, "fallos_limit": fallos_limit, "J1": jugadores["J1"]}
                     if num_jugadores == 2:
-                        estado_actual.update({
-                            "J2": jugadores["J2"],
-                            "time_limit_seconds": time_limit_seconds,
-                            "current_turn_player": current_turn_player,
-                            "active_letter": active_letter,
-                            "active_letter_x": active_letter_x,
-                            "active_letter_y": active_letter_y,
-                            "initial_x_j1": jugadores["J1"].get("initial_x_j1"),
-                            "initial_x_j2": jugadores["J2"].get("initial_x_j2")
-                        })
-                    guardar_partida(estado_actual, game_mode)
+                        estado_actual.update({"J2": jugadores["J2"], "time_limit_seconds": time_limit_seconds, "current_turn_player": current_turn_player, "active_letter": active_letter, "active_letter_x": active_letter_x, "active_letter_y": active_letter_y})
+                    guardar_partida(estado_actual, game_mode, timestamp_a_actualizar=save_timestamp)
                     return "menu_principal"
                 elif accion_pausa == "salir_sin_guardar":
                     return "menu_principal"
                 elif accion_pausa == "reanudar":
-                    tiempo_inicio_juego = time.time() - tiempo_transcurrido  
-
-            # --- Manejo de clics en los íconos de power-up recolectados ---
-            for pu_btn, pu_type, pu_index in clickable_powerup_buttons:
-                if pu_btn.handle_event(evento):
-                    # Player clicked a power-up icon!
-                    print(f"Clicked power-up: {pu_type}")
-                    
-                    # Antes de activar el power-up, verifica si ya está activo
-                    # Esto evita re-activaciones no deseadas para efectos duraderos
-                    already_active = False
-                    if pu_type == 'camara_lenta' and tiempo_actual < efecto_camara_lenta_activo_hasta:
-                        already_active = True
-                    elif pu_type == 'escudo' and tiempo_actual < efecto_escudo_activo_hasta:
-                        already_active = True
-                    elif pu_type == 'multiplicador' and tiempo_actual < efecto_multiplicador_activo_hasta:
-                        already_active = True
-                    
-                    if already_active:
-                        print(f"Power-up '{pu_type}' ya está activo. No se puede usar de nuevo.")
-                        # Opcional: añadir un sonido o feedback visual para indicar que no se puede usar
-                        continue # Salta al siguiente power-up o evento
-
-                    # Activar el efecto
-                    if pu_type == 'camara_lenta':
-                        efecto_camara_lenta_activo_hasta = tiempo_actual + DURACION_CAMARA_LENTA
-                        print(f"Power-up: Cámara Lenta activada por {DURACION_CAMARA_LENTA} segundos.")
-                    elif pu_type == 'escudo':
-                        efecto_escudo_activo_hasta = tiempo_actual + DURACION_ESCUDO
-                        fallos_restantes_escudo = FALLOS_ESCUDO_COUNT
-                        print(f"Power-up: Escudo activado, {FALLOS_ESCUDO_COUNT} fallos absorbidos por {DURACION_ESCUDO} segundos.")
-                    elif pu_type == 'multiplicador':
-                        efecto_multiplicador_activo_hasta = tiempo_actual + DURACION_MULTIPLICADOR
-                        puntos_multiplicador = 2
-                        print(f"Power-up: Multiplicador de Puntos activado por {DURACION_MULTIPLICADOR} segundos.")
-                    
-                    # Elimina el power-up de la lista de recolectados después de la activación
-                    collected_powerups.pop(pu_index) 
-                    
-                    if powerup_sound: powerup_sound.play() # Reproduce el sonido de activación
-                    break # Solo activa un power-up por clic
+                    tiempo_inicio_juego = time.time() 
+                    tiempo_transcurrido_cargado = tiempo_transcurrido
 
             if evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_ESCAPE:
@@ -1517,143 +1243,49 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, count_wrong_key_faults=Fal
                     tiempo_pausado_total += time.time() - tiempo_inicio_pausa
 
                     if accion_pausa == "guardar_y_salir":
-                        estado_actual = {
-                            "velocidad": velocidad_base_nivel,
-                            "tiempo_transcurrido": tiempo_transcurrido,
-                            "fallos_limit": fallos_limit,
-                            "J1": jugadores["J1"],
-                            "nivel_actual": nivel_actual,
-                            "aciertos_en_nivel": aciertos_en_nivel,
-                            "aciertos_para_siguiente_nivel": aciertos_para_siguiente_nivel,
-                            "eff_sl_until": efecto_camara_lenta_activo_hasta,
-                            "eff_sh_until": efecto_escudo_activo_hasta,
-                            "eff_mul_until": efecto_multiplicador_activo_hasta,
-                            "sh_faults_left": fallos_restantes_escudo,
-                            "pts_multiplier": puntos_multiplicador,
-                            "collected_powerups": collected_powerups, # <-- GUARDA LA LISTA DE RECOLECTADOS
-                        }
+                        estado_actual = {"velocidad": velocidad, "tiempo_transcurrido": tiempo_transcurrido, "fallos_limit": fallos_limit, "J1": jugadores["J1"]}
                         if num_jugadores == 2:
-                            estado_actual.update({
-                                "J2": jugadores["J2"],
-                                "time_limit_seconds": time_limit_seconds,
-                                "current_turn_player": current_turn_player,
-                                "active_letter": active_letter,
-                                "active_letter_x": active_letter_x,
-                                "active_letter_y": active_letter_y,
-                                "initial_x_j1": jugadores["J1"].get("initial_x_j1"),
-                                "initial_x_j2": jugadores["J2"].get("initial_x_j2")
-                            })
-                        guardar_partida(estado_actual, game_mode)
+                            estado_actual.update({"J2": jugadores["J2"], "time_limit_seconds": time_limit_seconds, "current_turn_player": current_turn_player, "active_letter": active_letter, "active_letter_x": active_letter_x, "active_letter_y": active_letter_y})
+                        guardar_partida(estado_actual, game_mode, timestamp_a_actualizar=save_timestamp)
                         return "menu_principal"
                     elif accion_pausa == "salir_sin_guardar":
                         return "menu_principal"
                     elif accion_pausa == "reanudar":
-                        tiempo_inicio_juego = time.time() - tiempo_transcurrido
-                
+                        tiempo_inicio_juego = time.time() 
+                        tiempo_transcurrido_cargado = tiempo_transcurrido
+
                 elif evento.key >= pygame.K_a and evento.key <= pygame.K_z:
-                    typed_letter = pygame.key.name(evento.key).upper()    
+                    typed_letter = pygame.key.name(evento.key).upper() 
                     
-                    # --- Comprobar si se activó un Power-Up ---
-                    powerup_collected_type = None # Usamos esta para almacenar el tipo si se recolecta
-                    for pu in powerups_activos:
-                        # Comprobar si la letra tecleada coincide y si el power-up está visible
-                        if pu.activo and typed_letter == pu.letra_asociada:
-                            # Comprobamos si el inventario de power-ups no está lleno
-                            if len(collected_powerups) < MAX_COLLECTED_POWERUPS:
-                                powerup_collected_type = pu.tipo # Almacena el tipo de power-up recolectado
-                                crear_particulas(pu.x + pu.pu_size // 2, pu.y + pu.pu_size // 2, pu.color)
-                                pu.activo = False # Marca el power-up como no activo (se recolectó)
-                                break # Salimos del bucle una vez que el power-up se ha gestionado
-                            else:
-                                print("¡Inventario de power-ups lleno! No se pudo recolectar otro.")
-                                if fallo_sound: fallo_sound.play() # Sonido de feedback por no poder recolectar
-                                continue # Continúa al siguiente power-up en la lista si hubiera, o termina el bucle
-                    
-                    if powerup_collected_type: # Si se recolectó un power-up
-                        collected_powerups.append(powerup_collected_type) # Añade el tipo a la lista de recolectados
-                        if powerup_sound: powerup_sound.play() # Sonido de recolección
-                        print(f"Power-up '{powerup_collected_type}' recolectado!")
-                        continue # La letra tecleada fue para un power-up, no la proceses como normal
-
-                    # --- FIN Comprobar Power-Up ---
-
-                    # Lógica existente para aciertos/fallos de letras normales
                     if num_jugadores == 1:
                         if typed_letter == jugadores["J1"]["letra_actual"]:
                             if acierto_sound: acierto_sound.play()
-                            jugadores["J1"]["score"] += (1 + racha_actual) * puntos_multiplicador # Aplicar multiplicador
+                            jugadores["J1"]["score"] += (1 + racha_actual)
                             racha_actual += 1
-                            aciertos_en_nivel += 1
                             crear_particulas(jugadores["J1"]["x"] + 25, jugadores["J1"]["y"] + 25, jugadores["J1"]["color"])
-                            
-                            # Generar nueva letra y su initial_x para la oscilación
                             jugadores["J1"]["letra_actual"] = chr(random.randint(65, 90))
-                            jugadores["J1"]["initial_x"] = random.randint(int(amplitud_lvl) + 50, ANCHO - 50 - int(amplitud_lvl) - 50)
-                            jugadores["J1"]["x"] = jugadores["J1"]["initial_x"]  
+                            jugadores["J1"]["x"] = random.randint(0, ANCHO - 50)
                             jugadores["J1"]["y"] = 0
-                        elif count_wrong_key_faults: # Se tecleó una letra incorrecta
+                            jugadores["J1"]["anim_offset"] = random.uniform(0, 2 * math.pi)
+                        elif count_wrong_key_faults:
                             if fallo_sound: fallo_sound.play()
                             racha_actual = 0
-                            # Lógica para el escudo
-                            if fallos_restantes_escudo > 0:
-                                fallos_restantes_escudo -= 1
-                                print("Escudo absorbió un fallo.")
-                            else:
-                                jugadores["J1"]["fallos"] += 1
-                            # Siempre se genera una nueva letra si se teclea, sea correcta o incorrecta
-                            jugadores["J1"]["letra_actual"] = chr(random.randint(65, 90))
-                            jugadores["J1"]["initial_x"] = random.randint(int(amplitud_lvl) + 50, ANCHO - 50 - int(amplitud_lvl) - 50)
-                            jugadores["J1"]["x"] = jugadores["J1"]["initial_x"]
-                            jugadores["J1"]["y"] = 0
-                    else: # Modo 2 Jugadores
+                            jugadores["J1"]["fallos"] += 1
+                    else:
                         if typed_letter == active_letter:
                             if acierto_sound: acierto_sound.play()
-                            jugadores[current_turn_player]["score"] += (1 + racha_actual) * puntos_multiplicador # Aplicar multiplicador
+                            jugadores[current_turn_player]["score"] += (1 + racha_actual)
                             racha_actual += 1
-                            aciertos_en_nivel += 1
                             crear_particulas(active_letter_x + (fuente_letras.get_rect(active_letter).width // 2), active_letter_y + (fuente_letras.get_rect(active_letter).height // 2), jugadores[current_turn_player]["color"])
-                        else: # Se tecleó una letra incorrecta
+                        else:
                             if fallo_sound: fallo_sound.play()
                             racha_actual = 0
-                            # Lógica para el escudo
-                            if fallos_restantes_escudo > 0:
-                                fallos_restantes_escudo -= 1
-                                print("Escudo absorbió un fallo.")
-                            else:
-                                jugadores[current_turn_player]["fallos"] += 1
-                                    
-                        # Generar nueva letra y cambiar de turno (siempre después de un intento)
+                            jugadores[current_turn_player]["fallos"] += 1
+                        
                         active_letter = chr(random.randint(65, 90))
                         active_letter_y = 0
                         current_turn_player = "J2" if current_turn_player == "J1" else "J1"
-                        
-                        # Asignar una nueva initial_x para el siguiente jugador en turno
-                        amplitud_para_rango = int(amplitud_lvl)
-                        if current_turn_player == "J1":
-                            jugadores["J1"]["initial_x_j1"] = random.randint(amplitud_para_rango + 50, (ANCHO // 2) - 50 - amplitud_para_rango - 50)
-                            active_letter_x = jugadores["J1"]["initial_x_j1"]
-                        else:
-                            jugadores["J2"]["initial_x_j2"] = random.randint(ANCHO // 2 + amplitud_para_rango + 50, ANCHO - 50 - amplitud_para_rango - 50)
-                            active_letter_x = jugadores["J2"]["initial_x_j2"]
-
-
-        # --- Actualizar y dibujar Power-Ups que caen ---
-        powerups_vivos = []
-        for pu in powerups_activos:
-            pu.update(dt) # Los power-ups tienen su propia velocidad, no la del juego
-            pu.draw(pantalla) # Dibuja el power-up que cae
-            if pu.activo: # Solo mantén los que no han sido recolectados
-                powerups_vivos.append(pu)
-        powerups_activos = powerups_vivos
-
-        # --- Lógica de Subida de Nivel ---
-        if aciertos_en_nivel >= aciertos_para_siguiente_nivel:
-            nivel_anterior = nivel_actual
-            nivel_actual += 1
-            aciertos_en_nivel = 0 # Resetear aciertos para el nuevo nivel
-            
-            # Mostrar el anuncio de nivel y pausar brevemente
-            mostrar_anuncio_nivel(nivel_actual, pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 100))
+                        active_letter_x = random.randint(0, ANCHO // 2 - 50) if current_turn_player == "J1" else random.randint(ANCHO // 2, ANCHO - 50)
 
         dt = clock.tick(60) / 1000.0
         pantalla.blit(fondo_img, (0, 0))
@@ -1662,49 +1294,46 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, count_wrong_key_faults=Fal
         if num_jugadores == 2:
             pygame.draw.line(pantalla, BLANCO, (ANCHO // 2, 0), (ANCHO // 2, ALTO), 2)
 
-        # --- Movimiento de letras normales ---
         if num_jugadores == 1:
-            jugadores["J1"]["y"] += velocidad_actual_de_caida * 60 * dt
-            jugadores["J1"]["x"] = jugadores["J1"]["initial_x"] + amplitud_lvl * math.sin(tiempo_transcurrido * frecuencia_lvl)
-            fuente_letras.render_to(pantalla, (jugadores["J1"]["x"], jugadores["J1"]["y"]), jugadores["J1"]["letra_actual"], jugadores["J1"]["color"])
+            jugadores["J1"]["y"] += velocidad * 60 * dt
             
-            if jugadores["J1"]["y"] > ALTO: # La letra se escapó
+            # --- CÁLCULO DE LA ANIMACIÓN ---
+            tiempo_anim = time.time() 
+            desplazamiento_x = math.sin(tiempo_anim * anim_frecuencia + jugadores["J1"]["anim_offset"]) * anim_amplitud
+            pos_x_final = jugadores["J1"]["x"] + desplazamiento_x
+            
+            fuente_letras.render_to(pantalla, (pos_x_final, jugadores["J1"]["y"]), jugadores["J1"]["letra_actual"], jugadores["J1"]["color"])
+            
+            if jugadores["J1"]["y"] > ALTO:
                 if fallo_sound: fallo_sound.play()
                 racha_actual = 0
-                jugadores["J1"]["fallos"] += 1 
+                jugadores["J1"]["fallos"] += 1
                 jugadores["J1"]["letra_actual"] = chr(random.randint(65, 90))
-                jugadores["J1"]["initial_x"] = random.randint(int(amplitud_lvl) + 50, ANCHO - 50 - int(amplitud_lvl) - 50)
-                jugadores["J1"]["x"] = jugadores["J1"]["initial_x"]
+                jugadores["J1"]["x"] = random.randint(0, ANCHO - 50)
                 jugadores["J1"]["y"] = 0
-        else: # Modo 2 Jugadores
-            active_letter_y += velocidad_actual_de_caida * 60 * dt
-            if current_turn_player == "J1":
-                active_letter_x = jugadores["J1"]["initial_x_j1"] + amplitud_lvl * math.sin(tiempo_transcurrido * frecuencia_lvl)
-            else:
-                active_letter_x = jugadores["J2"]["initial_x_j2"] + amplitud_lvl * math.sin(tiempo_transcurrido * frecuencia_lvl)
-            
+                jugadores["J1"]["anim_offset"] = random.uniform(0, 2 * math.pi)
+        else:
+            active_letter_y += velocidad * 60 * dt
             fuente_letras.render_to(pantalla, (active_letter_x, active_letter_y), active_letter, jugadores[current_turn_player]["color"])
-            
-            if active_letter_y > ALTO: # La letra se escapó
+            if active_letter_y > ALTO:
                 if fallo_sound: fallo_sound.play()
                 racha_actual = 0
-                jugadores[current_turn_player]["fallos"] += 1 
+                jugadores[current_turn_player]["fallos"] += 1
                 active_letter = chr(random.randint(65, 90))
                 active_letter_y = 0
                 current_turn_player = "J2" if current_turn_player == "J1" else "J1"
-                amplitud_para_rango = int(amplitud_lvl)
-                if current_turn_player == "J1":
-                    jugadores["J1"]["initial_x_j1"] = random.randint(amplitud_para_rango + 50, (ANCHO // 2) - 50 - amplitud_para_rango - 50)
-                    active_letter_x = jugadores["J1"]["initial_x_j1"]
-                else:
-                    jugadores["J2"]["initial_x_j2"] = random.randint(ANCHO // 2 + amplitud_para_rango + 50, ANCHO - 50 - amplitud_para_rango - 50)
-                    active_letter_x = jugadores["J2"]["initial_x_j2"]
+                active_letter_x = random.randint(0, ANCHO // 2 - 50) if current_turn_player == "J1" else random.randint(ANCHO // 2, ANCHO - 50)
 
+        actualizar_y_dibujar_particulas()
 
-        actualizar_y_dibujar_particulas() # Dibujar partículas (de aciertos y power-ups)
+        total_score_actual = sum(j["score"] for j in jugadores.values())
+        if total_score_actual // 10 > score_para_velocidad_anterior // 10:
+            if velocidad < max_speed:
+                velocidad += 0.1
+            score_para_velocidad_anterior = total_score_actual
 
-        # Dibujar UI de jugadores
-        fuente_ui.render_to(pantalla, (10, 10), f"J1: {jugadores['J1']['score']} (Fallos: {jugadores['J1']['fallos']})", jugadores['J1']['color'])
+        player1_ui_color = color if num_jugadores == 1 else jugadores['J1']['color']
+        fuente_ui.render_to(pantalla, (10, 10), f"J1: {jugadores['J1']['score']} (Fallos: {jugadores['J1']['fallos']})", player1_ui_color)
         if num_jugadores == 2:
             fuente_ui.render_to(pantalla, (ANCHO // 2 + 10, 10), f"J2: {jugadores['J2']['score']} (Fallos: {jugadores['J2']['fallos']})", jugadores['J2']['color'])
             if current_turn_player == "J1":
@@ -1712,44 +1341,15 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, count_wrong_key_faults=Fal
             else:
                 pygame.draw.circle(pantalla, jugadores["J2"]["color"], (3 * ANCHO // 4, 50), 10)
 
-        # Mostrar Nivel y Aciertos para Siguiente Nivel
-        fuente_ui.render_to(pantalla, (ANCHO // 2 - 70, 10), f"Nivel: {nivel_actual}", BLANCO)
-        if nivel_actual < max(parametros_movimiento.keys()):
-            fuente_ui.render_to(pantalla, (ANCHO // 2 - 120, 50), f"Siguiente Nivel: {aciertos_en_nivel}/{aciertos_para_siguiente_nivel} Aciertos", BLANCO)
-        else:
-            fuente_ui.render_to(pantalla, (ANCHO // 2 - 120, 50), "¡Nivel Máximo!", BLANCO)
-        
-        # Mostrar UI de estado de Power-ups activos (texto)
-        # Ajustamos las posiciones para que no se superpongan con los botones de inventario.
-        # Estos mensajes se muestran más arriba que la barra de power-ups.
-        powerup_active_text_y_start = ALTO - 100 # Empezamos más arriba
-        powerup_active_text_spacing = 30 
-
-        if efecto_multiplicador_activo_hasta > tiempo_actual:
-            fuente_ui.render_to(pantalla, (ANCHO - 150, powerup_active_text_y_start), "PUNTOS x2", COLOR_MULTIPLICADOR)
-            powerup_active_text_y_start -= powerup_active_text_spacing
-        
-        if efecto_escudo_activo_hasta > tiempo_actual and fallos_restantes_escudo > 0:
-            fuente_ui.render_to(pantalla, (10, powerup_active_text_y_start), f"ESCUDO ({fallos_restantes_escudo})", COLOR_ESCUDO)
-            powerup_active_text_y_start -= powerup_active_text_spacing
-        if efecto_camara_lenta_activo_hasta > tiempo_actual:
-            fuente_ui.render_to(pantalla, (10, powerup_active_text_y_start), "CÁMARA LENTA", COLOR_CAMARA_LENTA)
-            powerup_active_text_y_start -= powerup_active_text_spacing
-
-        # La llamada a draw_powerup_slots ya está en el lugar correcto al inicio del bucle.
-            
-        # Límite de tiempo (solo en modo Versus)
         if time_limit_seconds > 0:
             tiempo_restante = max(0, time_limit_seconds - int(tiempo_transcurrido))
             minutos, segundos = divmod(tiempo_restante, 60)
-            fuente_ui.render_to(pantalla, (ANCHO // 2 - 70, 90), f"Tiempo: {minutos:02d}:{segundos:02d}", BLANCO)
+            fuente_ui.render_to(pantalla, (ANCHO // 2 - 70, 50), f"Tiempo: {minutos:02d}:{segundos:02d}", BLANCO)
             if tiempo_restante <= 0: run = False
 
-        # Límite de fallos (en ambos modos, pero afecta el GAME OVER)
         if any(j["fallos"] >= fallos_limit for j in jugadores.values()):
             run = False
-            
-        # Racha de aciertos
+        
         if racha_actual > 1:
             combo_text = f"COMBO x{racha_actual}"
             if racha_actual < 10: combo_color = BLANCO
@@ -1765,24 +1365,26 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, count_wrong_key_faults=Fal
                 offset_x = random.randint(-2, 2)
                 offset_y = random.randint(-2, 2)
 
-            pos_x = (ANCHO - texto_rect.width) // 2 + offset_x
-            pos_y = 20 + offset_y
+            if num_jugadores == 2:
+                pos_x = (ANCHO - texto_rect.width) // 2 + offset_x
+                pos_y = 90 + offset_y
+            else:
+                pos_x = (ANCHO - texto_rect.width) // 2 + offset_x
+                pos_y = 20 + offset_y
             pantalla.blit(texto_surf, (pos_x, pos_y))
 
         btn_pausa.draw(pantalla)
         pygame.display.flip()
 
-    # Lógica de Game Over al salir del bucle
     total_aciertos = sum(j["score"] for j in jugadores.values())
     total_fallos = sum(j["fallos"] for j in jugadores.values())
 
     if num_jugadores == 1:
-        game_over(jugadores['J1']['score'], jugadores['J1']['score'], jugadores['J1']['fallos'], fuente_ui)
+        resultado = pantalla_fin_juego(jugadores['J1']['score'], total_aciertos, total_fallos, num_jugadores=1)
     else:
-        ganador = "J1" if jugadores["J1"]["score"] >= jugadores["J2"]["score"] else "J2"
-        game_over(jugadores[ganador]["score"], total_aciertos, total_fallos, fuente_ui)
+        resultado = pantalla_fin_juego(0, total_aciertos, total_fallos, num_jugadores=2, scores_j1=jugadores['J1']['score'], scores_j2=jugadores['J2']['score'])
     
-    return "menu_principal"
+    return resultado
 
 # ========================
 # MODO ARCANE (1 Jugador)
@@ -1791,8 +1393,7 @@ def jugar_arcane(nombre_fuente, tam, color):
     print("Iniciando Modo ARCANE (1 Jugador)...")
     fallos_limit = pantalla_configuracion_arcane()
     if fallos_limit == "volver_seleccion_modo": return "volver_seleccion_modo"
-    # Pasar initial_state=None si es una partida nueva
-    return jugar(nombre_fuente, tam, color, num_jugadores=1, count_wrong_key_faults=True, fallos_limit=fallos_limit, initial_state=None)
+    return jugar(nombre_fuente, tam, color, num_jugadores=1, initial_speed=1.5, count_wrong_key_faults=True, time_limit_seconds=0, fallos_limit=fallos_limit)
 
 # ========================
 # MODO VERSUS (2 Jugadores)
@@ -1802,8 +1403,7 @@ def jugar_versus(nombre_fuente, tam, color):
     time_limit_minutes = pantalla_configuracion_versus()
     if time_limit_minutes == "volver_seleccion_modo": return "volver_seleccion_modo"
     time_limit_seconds = time_limit_minutes * 60
-    # Pasar initial_state=None si es una partida nueva
-    return jugar(nombre_fuente, tam, color, num_jugadores=2, count_wrong_key_faults=True, time_limit_seconds=time_limit_seconds, fallos_limit=10, initial_state=None)
+    return jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=2.0, count_wrong_key_faults=True, time_limit_seconds=time_limit_seconds, fallos_limit=10)
 
 # ========================
 # PANTALLA SELECCIONAR PARTIDA GUARDADA
@@ -1826,7 +1426,7 @@ def pantalla_seleccionar_partida(saved_games):
         
         load_btn_y = y_start + i * spacing
         load_btn = Button(ANCHO // 2 - 250, load_btn_y, 500, 60, btn_text, fuente_partida_info, GRIS_OSCURO, GRIS_CLARO)
-        load_btn.set_logo_style(False)    
+        load_btn.set_logo_style(False) 
 
         delete_btn_x = load_btn.rect.right + 10
         delete_btn = Button(delete_btn_x, load_btn_y, 60, 60, "X", fuente_eliminar_btn, (150,0,0), (255,0,0))
@@ -1862,11 +1462,11 @@ def pantalla_seleccionar_partida(saved_games):
             no_saves_text, _ = fuente_partida_info.render("No hay partidas guardadas.", BLANCO)
             no_saves_text_rect = no_saves_text.get_rect(center=(ANCHO // 2, ALTO // 2))
             pantalla.blit(no_saves_text, no_saves_text_rect)
-            
+        
         for load_btn, delete_btn, _ in btns:
             load_btn.draw(pantalla)
             delete_btn.draw(pantalla)
-            
+        
         btn_volver.draw(pantalla)
 
         pygame.display.flip()
@@ -1876,15 +1476,15 @@ def pantalla_seleccionar_partida(saved_games):
 # EJECUCIÓN PRINCIPAL
 # ========================
 if __name__ == '__main__':
-    # Usamos BASE_PATH definido al inicio del script para todas las rutas
-    
     pantalla_intro()
     
     config = cargar_config()
     if not config:
         config = {"fuente": fuentes_disponibles[0], "tam": 60, "color": colores_disponibles[0]}
-
-    nombre_fuente, tam, color = config["fuente"], config["tam"], tuple(config["color"])
+    
+    nombre_fuente = config["fuente"]
+    tam = config["tam"]
+    color = tuple(config["color"])
 
     while True:
         accion = pantalla_menu_principal()
@@ -1908,7 +1508,8 @@ if __name__ == '__main__':
                 saved_games_list = cargar_partida()
                 selected_save_data = pantalla_seleccionar_partida(saved_games_list)
 
-                if selected_save_data == "refresh": continue
+                if selected_save_data == "refresh": 
+                    continue
 
                 if selected_save_data and selected_save_data != "volver_menu":
                     loaded_state = selected_save_data["state"]
@@ -1917,27 +1518,51 @@ if __name__ == '__main__':
                     loaded_time_limit_seconds = loaded_state.get("time_limit_seconds", 0)
                     
                     if loaded_mode == "arcane":
-                        resultado_juego = jugar(nombre_fuente=nombre_fuente, tam=tam, color=color,    
-                                                num_jugadores=1,    
-                                                count_wrong_key_faults=True,    
-                                                fallos_limit=loaded_fallos_limit,    
-                                                initial_state=loaded_state)
+                        resultado_juego = jugar(nombre_fuente=nombre_fuente, tam=tam, color=color, 
+                                                num_jugadores=1, 
+                                                initial_speed=loaded_state.get("velocidad", 1.5), 
+                                                count_wrong_key_faults=True, 
+                                                fallos_limit=loaded_fallos_limit, 
+                                                initial_state=loaded_state,
+                                                save_timestamp=selected_save_data["timestamp"])
                     elif loaded_mode == "versus":
-                        resultado_juego = jugar(nombre_fuente=nombre_fuente, tam=tam, color=color,    
-                                                num_jugadores=2,    
-                                                count_wrong_key_faults=True,    
-                                                time_limit_seconds=loaded_time_limit_seconds,    
-                                                fallos_limit=loaded_fallos_limit,    
-                                                initial_state=loaded_state)
-                    else:
-                        resultado_juego = None
-                    break
-            
+                        resultado_juego = jugar(nombre_fuente=nombre_fuente, tam=tam, color=color, 
+                                                num_jugadores=2, 
+                                                initial_speed=loaded_state.get("velocidad", 2.0), 
+                                                count_wrong_key_faults=True, 
+                                                time_limit_seconds=loaded_time_limit_seconds, 
+                                                fallos_limit=loaded_fallos_limit, 
+                                                initial_state=loaded_state,
+                                                save_timestamp=selected_save_data["timestamp"])
+                else:
+                    resultado_juego = None
+                break
+
         elif accion == "configuracion":
             nombre_fuente, tam, color = pantalla_configuracion(config)
             config = {"fuente": nombre_fuente, "tam": tam, "color": color}
         
         if 'resultado_juego' in locals() and resultado_juego == "menu_principal":
-            if music_loaded and pygame.mixer.music.get_busy() == 0: pygame.mixer.music.unpause()    
-            del resultado_juego
+            if music_loaded and not pygame.mixer.music.get_busy():
+                pygame.mixer.music.play(-1)
+            del resultado_juego 
             continue
+        elif 'resultado_juego' in locals() and resultado_juego == "reiniciar":
+            if music_loaded and not pygame.mixer.music.get_busy():
+                pygame.mixer.music.play(-1)
+            # Volver a iniciar el modo de juego
+            if selected_save_data and selected_save_data != "volver_menu":
+                # Si se reinicia desde una partida cargada, se vuelve a cargar la partida (como si fuera una nueva)
+                if selected_save_data['mode'] == "arcane":
+                    resultado_juego = jugar_arcane(nombre_fuente, tam, color)
+                elif selected_save_data['mode'] == "versus":
+                    resultado_juego = jugar_versus(nombre_fuente, tam, color)
+            elif 'modo_seleccionado' in locals():
+                if modo_seleccionado == "arcane":
+                    resultado_juego = jugar_arcane(nombre_fuente, tam, color)
+                elif modo_seleccionado == "versus":
+                    resultado_juego = jugar_versus(nombre_fuente, tam, color)
+            else:
+                # Si no hay modo seleccionado, se vuelve al menú principal
+                del resultado_juego
+                continue
