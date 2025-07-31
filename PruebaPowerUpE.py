@@ -9,6 +9,7 @@ import sys             # Para controlar el sistema (salir del juego)
 from datetime import datetime # Para gestionar las marcas de tiempo de las partidas guardadas
 from powerups import PowerUp, ShieldPowerUp, DoubleScorePowerUp # Importa todas las clases de power-ups
 from score_manager import ScoreManager # Importa la clase ScoreManager
+from keyboard_layout_manager import KeyboardLayoutManager # Importa la clase KeyboardLayoutManager
 
 # ========================
 # CONFIGURACIÓN INICIAL
@@ -185,6 +186,29 @@ try:
     double_score_activate_sound = pygame.mixer.Sound(os.path.join(os.path.dirname(__file__), "doblep.mp3"))   
 except Exception as e:
     print(f"Error cargando música de fondo o sonidos: {e}")
+
+# ========================
+# CARGA DE IMÁGENES DE POWER-UPS (¡NUEVO!)
+# ========================
+powerup_icons = {}
+# Define icon_size ANTES del bloque try-except para asegurar que siempre esté definida
+# Aumentado a 60 píxeles para que sea más grande
+icon_size = 60 
+try:
+    # Ajusta las rutas y los nombres de los archivos según donde los guardes
+    powerup_icons["ralentizar"] = pygame.image.load(os.path.join(os.path.dirname(__file__), "caracol.png")).convert_alpha()
+    powerup_icons["escudo"] = pygame.image.load(os.path.join(os.path.dirname(__file__), "escudo.png")).convert_alpha()
+    powerup_icons["doble_puntuacion"] = pygame.image.load(os.path.join(os.path.dirname(__file__), "dos.png")).convert_alpha()
+    
+    # Escala los iconos al tamaño definido (icon_size)
+    for key, img in powerup_icons.items():
+        powerup_icons[key] = pygame.transform.scale(img, (icon_size, icon_size))
+except Exception as e:
+    print(f"Error cargando iconos de power-ups: {e}. Asegúrate de que los archivos .png estén en la carpeta correcta.")
+    # Si los iconos no se cargan, se usará un Surface vacío como fallback
+    for p_type in ["ralentizar", "escudo", "doble_puntuacion"]:
+        powerup_icons[p_type] = pygame.Surface((icon_size, icon_size), pygame.SRCALPHA)
+
 
 # ========================
 # GUARDAR Y CARGAR CONFIG
@@ -1236,23 +1260,11 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
     player_managers = {}
     jugadores = {} # Diccionario para almacenar propiedades visuales y de juego de las letras
 
-    # --- Variables para la generación de letras sin repetición ---
-    alfabeto_disponible = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")  
-    letras_restantes_ciclo = initial_state.get("letras_restantes_ciclo", []) if initial_state else []
+    # --- Inicializa el KeyboardLayoutManager ---
+    # CORRECCIÓN: Aseguramos que initial_state.get() se llame solo si initial_state no es None
+    loaded_keyboard_state = initial_state.get("keyboard_layout_manager", {}) if initial_state is not None else {}
+    keyboard_manager = KeyboardLayoutManager.from_dict(loaded_keyboard_state)
     
-    # Asegúrate de que letras_restantes_ciclo se inicialice si el estado inicial no lo tiene
-    if not letras_restantes_ciclo and not initial_state: # Solo si no hay estado previo guardado, lo generamos
-        letras_restantes_ciclo = list(alfabeto_disponible)
-        random.shuffle(letras_restantes_ciclo)
-    
-    # ¡CORRECCIÓN CRÍTICA AQUÍ! Define obtener_nueva_letra ANTES de usarla
-    def obtener_nueva_letra():
-        nonlocal letras_restantes_ciclo  
-        if not letras_restantes_ciclo:  
-            letras_restantes_ciclo = list(alfabeto_disponible)
-            random.shuffle(letras_restantes_ciclo)
-        return letras_restantes_ciclo.pop(0)  
-
     # Ahora sí, inicializa las propiedades de los jugadores usando obtener_nueva_letra
     if num_jugadores == 1:
         if initial_state and "score_manager_j1" in initial_state:
@@ -1263,7 +1275,7 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
         # Inicializa las propiedades de la letra para J1
         initial_j1_state = initial_state.get("J1", {}) if initial_state else {}
         jugadores["J1"] = {
-            "letra_actual": initial_j1_state.get("letra_actual", obtener_nueva_letra()),
+            "letra_actual": initial_j1_state.get("letra_actual", keyboard_manager.obtener_nueva_letra(player_id="J1", num_jugadores=1)),
             "x": initial_j1_state.get("x", random.randint(0, ANCHO - 50)),
             "y": initial_j1_state.get("y", 0),
             "color": color,
@@ -1279,10 +1291,28 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
             player_managers["J2"] = ScoreManager()
 
         jugadores = {"J1": {"color": VERDE}, "J2": {"color": AMARILLO}}
-        # Las letras activas en modo versus se manejan globalmente por turnos
+        
+        # --- Lógica de turno y letra inicial para modo 2 jugadores ---
+        # Determina quién es el primer jugador en tener una letra, o carga el último
         current_turn_player = initial_state.get("current_turn_player", "J1") if initial_state else "J1"
-        active_letter = initial_state.get("active_letter", obtener_nueva_letra()) if initial_state else obtener_nueva_letra()
-        active_letter_x = initial_state.get("active_letter_x", (ANCHO // 4 if current_turn_player == "J1" else 3 * ANCHO // 4) - 25) if initial_state else random.randint(0, ANCHO // 2 - 50)
+        
+        # Obtiene la letra inicial para el turno actual
+        # CORRECCIÓN CLAVE: Pasa el current_turn_player para obtener la letra de la mano correcta.
+        # Esto se ejecuta ANTES de que se cambie el turno, para la letra ACTUAL.
+        active_letter = initial_state.get("active_letter", keyboard_manager.obtener_nueva_letra(player_id=current_turn_player, num_jugadores=2)) if initial_state else keyboard_manager.obtener_nueva_letra(player_id="J1", num_jugadores=2) 
+        
+        # Calcula la posición X inicial basada en el current_turn_player
+        # CORRECCIÓN: Aseguramos que initial_state es un diccionario o None antes de usar .get()
+        initial_active_x = initial_state.get("active_letter_x", None) if initial_state is not None else None
+        if initial_active_x is None: # Si no está cargado, calcula una posición inicial
+            margen_seguro = tam # Margen para que la letra no se salga de pantalla
+            if current_turn_player == "J1":
+                active_letter_x = random.randint(margen_seguro, ANCHO // 2 - margen_seguro) # Lado izquierdo
+            else: # current_turn_player == "J2"
+                active_letter_x = random.randint(ANCHO // 2 + margen_seguro, ANCHO - margen_seguro) # Lado derecho
+        else:
+            active_letter_x = initial_active_x
+
         active_letter_y = initial_state.get("active_letter_y", 0) if initial_state else 0
 
     # Variables de juego globales, no de ScoreManager
@@ -1323,17 +1353,13 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
             for tipo, info_pu in power_up_manager.activos.items():
                 print(f" - {tipo}: {power_up_manager.get_remaining_time(tipo):.1f}s restantes")
 
-    # ¡CORRECCIÓN CRÍTICA AQUÍ! Inicializa tiempo_inicio_juego y tiempo_pausado_total de forma incondicional
+    # Inicializa tiempo_inicio_juego y tiempo_pausado_total de forma incondicional
     tiempo_inicio_juego = time.time()  
-    tiempo_pausado_total = 0 # Inicializa a cero
+    tiempo_pausado_total = 0 
 
     if initial_state:
         mostrar_conteo_regresivo(3, pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 100), BLANCO)
-        # Aquí ya no necesitas tiempo_inicio_juego = time.time()
-        # ya que se inicializa arriba.
-        # Tampoco necesitas tiempo_pausado_total = 0, ya está en 0 arriba.
-
-
+        
     run = True
     while run:
         tiempo_actual = time.time()
@@ -1366,7 +1392,7 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
                         "tiempo_transcurrido": tiempo_transcurrido,  
                         "fallos_limit": fallos_limit,  
                         "score_manager_j1": player_managers["J1"].to_dict(), # Guardar ScoreManager J1
-                        "letras_restantes_ciclo": letras_restantes_ciclo,
+                        "keyboard_layout_manager": keyboard_manager.to_dict(), # ¡NUEVO! Guardar estado del keyboard manager
                         "power_ups_activos": power_up_manager.activos  
                     }
                     if num_jugadores == 2:
@@ -1402,7 +1428,7 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
                             "tiempo_transcurrido": tiempo_transcurrido,  
                             "fallos_limit": fallos_limit,  
                             "score_manager_j1": player_managers["J1"].to_dict(), # Guardar ScoreManager J1
-                            "letras_restantes_ciclo": letras_restantes_ciclo,
+                            "keyboard_layout_manager": keyboard_manager.to_dict(), # ¡NUEVO! Guardar estado del keyboard manager
                             "power_ups_activos": power_up_manager.activos
                         }
                         if num_jugadores == 2:
@@ -1437,7 +1463,7 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
                             if acierto_sound: acierto_sound.play()
                             crear_particulas(jugadores["J1"]["x"] + 25, jugadores["J1"]["y"] + 25, jugadores["J1"]["color"])
                             
-                            jugadores["J1"]["letra_actual"] = obtener_nueva_letra()  
+                            jugadores["J1"]["letra_actual"] = keyboard_manager.obtener_nueva_letra(player_id="J1", num_jugadores=1)
                             margen_seguro = tam
                             jugadores["J1"]["x"] = random.randint(margen_seguro, ANCHO - margen_seguro)
                             jugadores["J1"]["y"] = 0
@@ -1473,6 +1499,10 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
                     # Lógica para MODO 2 JUGADORES (VERSUS)
                     else: # num_jugadores == 2
                         current_manager = player_managers[current_turn_player]
+                        # Determinamos qué jugador tecleó (o debió teclear) esta letra.
+                        # En este punto, `current_turn_player` ES quien tenía el turno para teclear.
+                        player_whose_turn_was_just_processed = current_turn_player 
+
                         if typed_letter == active_letter:
                             current_manager.add_score() # Añade puntos (1 o 2) e incrementa aciertos y racha
                             if acierto_sound: acierto_sound.play()
@@ -1495,23 +1525,35 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
                                         if powerup_activate_sound: powerup_activate_sound.play()  
                                 else:
                                     pass # No se hace nada si ya hay uno activo
-
-                            active_letter = obtener_nueva_letra()  
-                            active_letter_y = 0
-                            current_turn_player = "J2" if current_turn_player == "J1" else "J1"
+                            
+                            # La letra ha sido tecleada correctamente. Preparamos la SIGUIENTE letra.
+                            # Para el siguiente turno, cambiamos el jugador y generamos su letra.
+                            next_turn_player = "J2" if player_whose_turn_was_just_processed == "J1" else "J1"
+                            active_letter = keyboard_manager.obtener_nueva_letra(player_id=next_turn_player, num_jugadores=2)
+                            active_letter_y = 0 # Reinicia la Y para la nueva letra
+                            
                             margen_seguro = tam
-                            if current_turn_player == "J1":
+                            # Calcula la X para la nueva letra, que es para el next_turn_player
+                            if next_turn_player == "J1":
                                 active_letter_x = random.randint(margen_seguro, ANCHO // 2 - margen_seguro)
-                            else:
+                            else: # next_turn_player == "J2"
                                 active_letter_x = random.randint(ANCHO // 2 + margen_seguro, ANCHO - margen_seguro)
+                            
+                            # Ahora SÍ actualizamos el current_turn_player a quien le toca la próxima letra
+                            current_turn_player = next_turn_player
                         
-                        else:
+                        else: # El jugador actual pulsó una letra incorrecta
                             shielded_hit = power_up_manager.esta_activo("escudo") and ShieldPowerUp().absorber_golpe()
                             current_manager.handle_miss(shielded=shielded_hit) # Maneja el fallo (puede ser protegido)
                             if shielded_hit:
                                 if shield_hit_sound: shield_hit_sound.play()
                             else:
                                 if fallo_sound: fallo_sound.play()
+                            
+                            # En caso de fallo, la letra actual se mantiene y el turno NO cambia.
+                            # El jugador que falló debe intentar de nuevo con la misma letra.
+                            # No generamos una nueva letra aquí.
+                            pass
 
         dt = clock.tick(60) / 1000.0
         pantalla.blit(fondo_img, (0, 0))
@@ -1535,7 +1577,7 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
                 else:
                     if fallo_sound: fallo_sound.play()
                 
-                jugadores["J1"]["letra_actual"] = obtener_nueva_letra()  
+                jugadores["J1"]["letra_actual"] = keyboard_manager.obtener_nueva_letra(player_id="J1", num_jugadores=1)
                 margen_seguro = tam
                 jugadores["J1"]["x"] = random.randint(margen_seguro, ANCHO - margen_seguro)
                 jugadores["J1"]["y"] = 0
@@ -1547,7 +1589,7 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
             desplazamiento_x = math.sin(time.time() * anim_frecuencia) * anim_amplitud
             fuente_letras.render_to(pantalla, (active_letter_x + desplazamiento_x, active_letter_y), active_letter, jugadores[current_turn_player]["color"])
             
-            if active_letter_y > ALTO:  
+            if active_letter_y > ALTO:  # La letra cayó al fondo
                 shielded_hit = power_up_manager.esta_activo("escudo") and ShieldPowerUp().absorber_golpe()
                 current_manager.handle_miss(shielded=shielded_hit) # Maneja el fallo (puede ser protegido)
                 if shielded_hit:
@@ -1555,14 +1597,21 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
                 else:
                     if fallo_sound: fallo_sound.play()
                 
-                active_letter = obtener_nueva_letra()  
-                active_letter_y = 0
-                current_turn_player = "J2" if current_turn_player == "J1" else "J1"
+                # La letra cayó, preparamos la SIGUIENTE letra.
+                # Para el siguiente turno, cambiamos el jugador y generamos su letra.
+                next_turn_player = "J2" if current_turn_player == "J1" else "J1"
+                active_letter = keyboard_manager.obtener_nueva_letra(player_id=next_turn_player, num_jugadores=2)
+                active_letter_y = 0 # Reinicia la Y para la nueva letra
+                
                 margen_seguro = tam
-                if current_turn_player == "J1":
+                # Calcula la X para la nueva letra, que es para el next_turn_player
+                if next_turn_player == "J1":
                     active_letter_x = random.randint(margen_seguro, ANCHO // 2 - margen_seguro)
-                else:
+                else: # next_turn_player == "J2"
                     active_letter_x = random.randint(ANCHO // 2 + margen_seguro, ANCHO - margen_seguro)
+                
+                # Ahora SÍ actualizamos el current_turn_player a quien le toca la próxima letra
+                current_turn_player = next_turn_player
 
         actualizar_y_dibujar_particulas()
 
@@ -1632,26 +1681,33 @@ def jugar(nombre_fuente, tam, color, num_jugadores=2, initial_speed=1.5, count_w
             pantalla.blit(texto_surf, (pos_x, pos_y))
             
         # --- Mostrar estado de power-ups activos ---
-        fuente_power = pygame.freetype.SysFont("arial", 25)
-        y_offset_powerups = ALTO - 40  
+        # Posición inicial para el primer icono de power-up
+        powerup_icon_x_start = ANCHO - 50 - icon_size # 50px de margen desde la derecha
+        powerup_icon_y = ALTO - 50 - icon_size # 50px de margen desde abajo
+        icon_spacing = 60 # Espacio entre iconos (vertical)
 
-        if power_up_manager.esta_activo("doble_puntuacion"):
-            tiempo_restante_doble_puntuacion = int(power_up_manager.get_remaining_time("doble_puntuacion"))
-            fuente_power.render_to(pantalla, (ANCHO - 250, y_offset_powerups),  
-                                   f"Doble Pts: {tiempo_restante_doble_puntuacion}s", (255, 100, 0))  
-            y_offset_powerups -= 30  
-
-        if power_up_manager.esta_activo("ralentizar"):
-            tiempo_restante = int(power_up_manager.get_remaining_time("ralentizar"))
-            fuente_power.render_to(pantalla, (ANCHO - 250, y_offset_powerups),  
-                                   f"Ralentizado: {tiempo_restante}s", BLANCO)
-            y_offset_powerups -= 30  
-        
-        if power_up_manager.esta_activo("escudo"):
-            tiempo_restante_escudo = int(power_up_manager.get_remaining_time("escudo"))
-            fuente_power.render_to(pantalla, (ANCHO - 250, y_offset_powerups),  
-                                   f"Escudo: {tiempo_restante_escudo}s restantes", AMARILLO)  
-            y_offset_powerups -= 30
+        for tipo_pu in reversed(list(powerup_icons.keys())): # Itera para dibujar de abajo hacia arriba
+            if power_up_manager.esta_activo(tipo_pu):
+                icon_image = powerup_icons[tipo_pu]
+                
+                # Obtén el tiempo restante para el parpadeo
+                tiempo_restante_pu = power_up_manager.get_remaining_time(tipo_pu)
+                
+                # Efecto de parpadeo si el power-up está a punto de terminar
+                if tiempo_restante_pu <= 2 and int(time.time() * 10) % 2 == 0: # Parpadea cada 0.1s
+                    # Si está parpadeando, no dibujamos el icono en este frame
+                    pass 
+                else:
+                    # Dibuja el icono
+                    pantalla.blit(icon_image, (powerup_icon_x_start, powerup_icon_y))
+                    
+                    # Opcional: dibujar tiempo restante sobre el icono o al lado
+                    font_time_remaining = pygame.freetype.SysFont("arial", 18)
+                    time_text_surf, time_text_rect = font_time_remaining.render(f"{int(tiempo_restante_pu)}s", BLANCO)
+                    time_text_rect.midleft = (powerup_icon_x_start - time_text_surf.get_width() - 5, powerup_icon_y + icon_size // 2)
+                    pantalla.blit(time_text_surf, time_text_rect)
+                    
+                powerup_icon_y -= icon_spacing # Mueve la posición Y para el siguiente icono
 
         # --- Siempre dibujar la silueta del escudo y su animación ---
         # Determina la posición de la letra para dibujar el círculo
