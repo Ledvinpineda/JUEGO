@@ -94,6 +94,19 @@ except Exception as e:
     for p_type in ["ralentizar", "escudo", "doble_puntuacion"]:
         powerup_icons[p_type] = pygame.Surface((icon_size, icon_size), pygame.SRCALPHA)
 
+# --- Cargar imágenes de los generadores de letras ---
+spawner_icons = {}
+spawner_icon_size = (80, 80) # Tamaño para el avión y el icono lateral
+try:
+    spawner_icons["avion"] = pygame.image.load(os.path.join(os.path.dirname(__file__), "helicoptero.png")).convert_alpha()
+    spawner_icons["avion"] = pygame.transform.scale(spawner_icons["avion"], spawner_icon_size)
+    spawner_icons["icono_lateral"] = pygame.image.load(os.path.join(os.path.dirname(__file__), "vehiculo.png")).convert_alpha()
+    spawner_icons["icono_lateral"] = pygame.transform.scale(spawner_icons["icono_lateral"], spawner_icon_size)
+except Exception as e:
+    print(f"Error cargando iconos de generadores: {e}")
+    spawner_icons["avion"] = pygame.Surface(spawner_icon_size, pygame.SRCALPHA)
+    spawner_icons["icono_lateral"] = pygame.Surface(spawner_icon_size, pygame.SRCALPHA)
+
 # ========================
 # FUNCIONES DE UI Y UTILIDADES
 # ========================
@@ -220,12 +233,13 @@ def pantalla_configuracion(config):
     idx_color = colores_disponibles.index(color) if color in colores_disponibles else 0
     fuente_guardar_btn = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 22)
     btn_guardar = Button(ANCHO//2 - 130, ALTO - 100, 260, 60, "GUARDAR Y CONTINUAR", fuente_guardar_btn, GRIS_OSCURO, GRIS_CLARO); btn_guardar.set_logo_style(True)
-    btn_tam_left = Button(ANCHO//2-200, 150+50, 40, 40, "<", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
-    btn_tam_right = Button(ANCHO//2+160, 150+50, 40, 40, ">", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
-    btn_fuente_left = Button(ANCHO//2-200, 150+2*50, 40, 40, "<", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
-    btn_fuente_right = Button(ANCHO//2+160, 150+2*50, 40, 40, ">", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
-    btn_color_left = Button(ANCHO//2-200, 150+3*50, 40, 40, "<", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
-    btn_color_right = Button(ANCHO//2+160, 150+3*50, 40, 40, ">", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
+    y_base_botones = 150
+    btn_tam_left = Button(ANCHO//2-200, y_base_botones+50, 40, 40, "<", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
+    btn_tam_right = Button(ANCHO//2+160, y_base_botones+50, 40, 40, ">", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
+    btn_fuente_left = Button(ANCHO//2-200, y_base_botones+100, 40, 40, "<", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
+    btn_fuente_right = Button(ANCHO//2+160, y_base_botones+100, 40, 40, ">", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
+    btn_color_left = Button(ANCHO//2-200, y_base_botones+150, 40, 40, "<", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
+    btn_color_right = Button(ANCHO//2+160, y_base_botones+150, 40, 40, ">", pygame.freetype.SysFont("arial", 25), GRIS_OSCURO, GRIS_CLARO, border_radius=5)
     while True:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT: pygame.quit(); sys.exit()
@@ -235,7 +249,8 @@ def pantalla_configuracion(config):
             elif btn_fuente_right.handle_event(evento): idx_fuente=(idx_fuente+1)%len(fuentes_disponibles); nombre_fuente=fuentes_disponibles[idx_fuente]
             elif btn_color_left.handle_event(evento): idx_color=(idx_color-1)%len(colores_disponibles); color=colores_disponibles[idx_color]
             elif btn_color_right.handle_event(evento): idx_color=(idx_color+1)%len(colores_disponibles); color=colores_disponibles[idx_color]
-            elif btn_guardar.handle_event(evento) or (evento.type==pygame.KEYDOWN and evento.key==pygame.K_RETURN): return nombre_fuente, tam, color
+            elif btn_guardar.handle_event(evento) or (evento.type==pygame.KEYDOWN and evento.key==pygame.K_RETURN):
+                return nombre_fuente, tam, color
         pantalla.blit(fondo_img, (0, 0)); dibujar_estrellas()
         y_base=100; separacion=50
         render_text_gradient(pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 50), "CONFIGURACIÓN", pygame.Rect(0,y_base-50,ANCHO,50), pantalla, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 3)
@@ -243,18 +258,27 @@ def pantalla_configuracion(config):
         texto_tam, _ = fuente_ui_text.render(f"Tamaño: {tam}", BLANCO); pantalla.blit(texto_tam, (ANCHO//2-texto_tam.get_width()//2, y_base+separacion))
         texto_fuente, _ = fuente_ui_text.render(f"Fuente: {nombre_fuente}", BLANCO); pantalla.blit(texto_fuente, (ANCHO//2-texto_fuente.get_width()//2, y_base+2*separacion))
         texto_color, _ = fuente_ui_text.render(f"Color:", color); pantalla.blit(texto_color, (ANCHO//2-texto_color.get_width()//2, y_base+3*separacion))
+        fuente_letras_preview = pygame.freetype.SysFont(nombre_fuente, tam)
+        texto_prev_surf, texto_prev_rect = fuente_letras_preview.render("A", color)
+        texto_prev_rect.center = (ANCHO//2, y_base + 4*separacion + 50); pantalla.blit(texto_prev_surf, texto_prev_rect)
         btn_tam_left.draw(pantalla); btn_tam_right.draw(pantalla); btn_fuente_left.draw(pantalla); btn_fuente_right.draw(pantalla)
         btn_color_left.draw(pantalla); btn_color_right.draw(pantalla); btn_guardar.draw(pantalla)
         pygame.display.flip(); clock.tick(60)
 
 def pantalla_menu_principal():
+    # --- LÍNEA AÑADIDA ---
+    # Asegúrate de que la música esté sonando cuando estemos en el menú principal
+    if music_loaded and not pygame.mixer.music.get_busy():
+        pygame.mixer.music.play(-1)
+    # ---------------------
+
     btn_y_start, btn_spacing = ALTO // 2 - 50, 80
     fuente_opciones = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 30)
-    btn_modos_juego = Button(ANCHO//2 - 140, btn_y_start, 280, 60, "JUGAR", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
-    btn_puntuaciones = Button(ANCHO//2 - 140, btn_y_start + btn_spacing, 280, 60, "PUNTUACIONES", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
-    btn_cargar = Button(ANCHO//2 - 140, btn_y_start + 2 * btn_spacing, 280, 60, "CARGAR PARTIDA", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
-    btn_config = Button(ANCHO//2 - 140, btn_y_start + 3 * btn_spacing, 280, 60, "CONFIGURACIÓN", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
-    btn_salir = Button(ANCHO//2 - 140, btn_y_start + 4 * btn_spacing, 280, 60, "SALIR", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
+    btn_modos_juego = Button(ANCHO//2-140, btn_y_start, 280, 60, "JUGAR", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
+    btn_puntuaciones = Button(ANCHO//2-140, btn_y_start + btn_spacing, 280, 60, "PUNTUACIONES", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
+    btn_cargar = Button(ANCHO//2-140, btn_y_start + 2 * btn_spacing, 280, 60, "CARGAR PARTIDA", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
+    btn_config = Button(ANCHO//2-140, btn_y_start + 3 * btn_spacing, 280, 60, "CONFIGURACIÓN", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
+    btn_salir = Button(ANCHO//2-140, btn_y_start + 4 * btn_spacing, 280, 60, "SALIR", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
     botones = [btn_modos_juego, btn_puntuaciones, btn_cargar, btn_config, btn_salir]
     for btn in botones: btn.set_logo_style(True)
     logo_img = None
