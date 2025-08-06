@@ -45,10 +45,10 @@ class GameSession:
         
         # Lógica de Velocidad y Niveles
         self.level_data = {
-            1: {"threshold": 0, "speed": 2.0},
-            2: {"threshold": 30, "speed": 2.5},
-            3: {"threshold": 80, "speed": 3.0},
-            4: {"threshold": 150, "speed": 3.5}
+            1: {"threshold": 0, "speed": 2.0 + 2.0},
+            2: {"threshold": 30, "speed": 2.5 + 1.5},
+            3: {"threshold": 80, "speed": 3.0 + 1.5},
+            4: {"threshold": 150, "speed": 3.5 + 1.5}
         }
         self.nivel_actual = 1
         self.velocidad = self.level_data[1]["speed"]
@@ -100,13 +100,15 @@ class GameSession:
         if self.game_options["num_jugadores"] != 1: return
         for _ in range(count):
             char = self.keyboard_manager.obtener_nueva_letra(player_id="J1", num_jugadores=1)
-            spawn_type = 'top'
+            letra = {'char': char, 'color': self.config["color"], 'anim_offset': random.uniform(0, 2 * math.pi)}
+
+            spawn_type = ''
             if self.nivel_actual >= 3:
                 spawn_type = random.choice(['top', 'top', 'left', 'right'])
+            else:
+                spawn_type = random.choice(['top', 'bottom'])
 
-            letra = {'char': char, 'color': self.config["color"], 'anim_offset': random.uniform(0, 2 * math.pi)}
-            letra['icon_active'] = True
-
+            letra['has_icon'] = True
             icon_surface = None
             if spawn_type == 'left' or spawn_type == 'right':
                 letra['icon_type'] = 'icono_lateral'
@@ -117,32 +119,27 @@ class GameSession:
 
             if spawn_type == 'left':
                 letra.update({
-                    'icon_x': -icon_surface.get_width(), 'icon_y': random.randint(50, self.main.ALTO - 150),
-                    'icon_vx': self.velocidad * 0.75, 'icon_vy': self.velocidad * 0.1
+                    'x': -icon_surface.get_width(), 'y': random.randint(50, self.main.ALTO - 150),
+                    'vx': self.velocidad * 0.75, 'vy': self.velocidad * 0.1
                 })
             elif spawn_type == 'right':
                 letra.update({
-                    'icon_x': self.main.ANCHO + icon_surface.get_width(), 'icon_y': random.randint(50, self.main.ALTO - 150),
-                    'icon_vx': -self.velocidad * 0.75, 'icon_vy': self.velocidad * 0.1
+                    'x': self.main.ANCHO + icon_surface.get_width(), 'y': random.randint(50, self.main.ALTO - 150),
+                    'vx': -self.velocidad * 0.75, 'vy': self.velocidad * 0.1
                 })
-            else:
+            elif spawn_type == 'bottom':
                 letra.update({
-                    'icon_x': random.randint(self.config["tam"], self.main.ANCHO - self.config["tam"]), 'icon_y': -icon_surface.get_height(),
-                    'icon_vx': 0, 'icon_vy': self.velocidad
+                    'x': random.randint(self.config["tam"], self.main.ANCHO - self.config["tam"]), 'y': self.main.ALTO + icon_surface.get_height(),
+                    'vx': 0, 'vy': -self.velocidad
+                })
+            else:  # top
+                letra.update({
+                    'x': random.randint(self.config["tam"], self.main.ANCHO - self.config["tam"]), 'y': -icon_surface.get_height(),
+                    'vx': 0, 'vy': self.velocidad
                 })
 
-            distancia_remolque = 20
-            if letra['icon_type'] == 'avion':
-                letra['letter_x'] = letra['icon_x']
-                letra['letter_y'] = letra['icon_y'] + icon_surface.get_height() / 2 + distancia_remolque
-            else:
-                letra['letter_y'] = letra['icon_y']
-                if letra['icon_vx'] > 0:
-                    letra['letter_x'] = letra['icon_x'] + icon_surface.get_width() / 2 + distancia_remolque
-                else:
-                    letra['letter_x'] = letra['icon_x'] - icon_surface.get_width() / 2 - distancia_remolque
-            
             self.letras_en_pantalla.append(letra)
+
 
     def _setup_new_game(self):
         if self.game_options["num_jugadores"] == 1:
@@ -222,30 +219,48 @@ class GameSession:
         j1_manager = self.player_managers["J1"]; letra_acertada = None
         for letra in self.letras_en_pantalla:
             if typed_letter == letra['char']: letra_acertada = letra; break
+        
         if letra_acertada:
             j1_manager.add_score(); self.main.acierto_sound.play()
-            
-            self.main.crear_particulas(letra_acertada["letter_x"], letra_acertada["letter_y"], letra_acertada["color"])
-            
+            self.main.crear_particulas(letra_acertada["x"], letra_acertada["y"], letra_acertada["color"])
             self.letras_en_pantalla.remove(letra_acertada)
             if not self.letras_en_pantalla:
                 self._spawn_new_letters(count=2 if self.nivel_actual >= 3 else 1)
             if j1_manager.get_aciertos()%10==0 and not self.powerup_manager.activos: self._spawn_powerup()
             return True
-        else: self._handle_miss(j1_manager); return False
+        else:
+            # --- NUEVA LÓGICA DE FALLO PARA 1P ---
+            self._handle_miss(j1_manager)
+            if self.letras_en_pantalla:
+                # Penaliza eliminando la letra más baja (más peligrosa)
+                letra_a_eliminar = max(self.letras_en_pantalla, key=lambda l: l['y'])
+                self.letras_en_pantalla.remove(letra_a_eliminar)
+                if not self.letras_en_pantalla:
+                    self._spawn_new_letters(count=1)
+            return False
+
+    def _change_turn_versus(self):
+        """Función auxiliar para cambiar de turno en modo versus."""
+        self.current_turn_player = "J2" if self.current_turn_player == "J1" else "J1"
+        self.active_letter = self.keyboard_manager.obtener_nueva_letra(player_id=self.current_turn_player, num_jugadores=2)
+        self.active_letter_y = 0; margen = self.config["tam"]
+        if self.current_turn_player == "J1":
+            self.active_letter_x = random.randint(margen, self.main.ANCHO//2 - margen)
+        else:
+            self.active_letter_x = random.randint(self.main.ANCHO//2 + margen, self.main.ANCHO - margen)
 
     def _handle_keypress_j2(self, typed_letter):
         current_manager = self.player_managers[self.current_turn_player]
         if typed_letter == self.active_letter:
             current_manager.add_score(); self.main.acierto_sound.play()
             if current_manager.get_aciertos()%10==0 and not self.powerup_manager.activos: self._spawn_powerup()
-            self.current_turn_player = "J2" if self.current_turn_player == "J1" else "J1"
-            self.active_letter = self.keyboard_manager.obtener_nueva_letra(player_id=self.current_turn_player, num_jugadores=2)
-            self.active_letter_y = 0; margen = self.config["tam"]
-            if self.current_turn_player == "J1": self.active_letter_x = random.randint(margen, self.main.ANCHO//2-margen)
-            else: self.active_letter_x = random.randint(self.main.ANCHO//2+margen, self.main.ANCHO-margen)
+            self._change_turn_versus()
             return True
-        else: self._handle_miss(current_manager); return False
+        else:
+            # --- NUEVA LÓGICA DE FALLO PARA 2P ---
+            self._handle_miss(current_manager)
+            self._change_turn_versus() # También cambia de turno al fallar
+            return False
 
     def _handle_miss(self, manager):
         shielded_hit = self.powerup_manager.esta_activo("escudo")
@@ -282,29 +297,10 @@ class GameSession:
         
         if self.game_options["num_jugadores"] == 1:
             for letra in list(self.letras_en_pantalla):
-                letra['icon_x'] += letra['icon_vx'] * 60 * dt
-                letra['icon_y'] += letra['icon_vy'] * 60 * dt
+                letra['x'] += letra['vx'] * 60 * dt
+                letra['y'] += letra['vy'] * 60 * dt
 
-                if letra['icon_active']:
-                    icon_surface = self.main.spawner_icons[letra['icon_type']]
-                    distancia_remolque = 20
-                    easing_factor = 0.1
-                    
-                    target_x, target_y = 0, 0
-                    if letra['icon_type'] == 'avion':
-                        target_x = letra['icon_x']
-                        target_y = letra['icon_y'] + icon_surface.get_height() / 2 + distancia_remolque
-                    else:
-                        target_y = letra['icon_y']
-                        if letra['icon_vx'] > 0:
-                            target_x = letra['icon_x'] + icon_surface.get_width() / 2 + distancia_remolque
-                        else:
-                            target_x = letra['icon_x'] - icon_surface.get_width() / 2 - distancia_remolque
-                    
-                    letra['letter_x'] += (target_x - letra['letter_x']) * easing_factor
-                    letra['letter_y'] += (target_y - letra['letter_y']) * easing_factor
-                
-                if (letra['icon_y'] > self.main.ALTO + 50 or letra['icon_x'] > self.main.ANCHO + 100 or letra['icon_x'] < -100):
+                if (letra['y'] > self.main.ALTO + 100 or letra['y'] < -100 or letra['x'] > self.main.ANCHO + 100 or letra['x'] < -100):
                     self._handle_miss(self.player_managers["J1"])
                     self.letras_en_pantalla.remove(letra)
                     if not self.letras_en_pantalla:
@@ -313,11 +309,7 @@ class GameSession:
             self.active_letter_y += self.velocidad * 60 * dt
             if self.active_letter_y > self.main.ALTO:
                 self._handle_miss(self.player_managers[self.current_turn_player])
-                self.current_turn_player = "J2" if self.current_turn_player == "J1" else "J1"
-                self.active_letter = self.keyboard_manager.obtener_nueva_letra(player_id=self.current_turn_player, num_jugadores=2)
-                self.active_letter_y = 0; margen = self.config["tam"]
-                if self.current_turn_player == "J1": self.active_letter_x = random.randint(margen, self.main.ANCHO//2-margen)
-                else: self.active_letter_x = random.randint(self.main.ANCHO//2+margen, self.main.ANCHO-margen)
+                self._change_turn_versus() # También cambia de turno si la letra se va de la pantalla
         
         if self.game_options.get("time_limit_seconds",0)>0 and self.tiempo_transcurrido >= self.game_options["time_limit_seconds"]: self.run_flag=False
         if any(m.get_fallos() >= self.game_options.get("fallos_limit",999) for m in self.player_managers.values()): self.run_flag=False
@@ -329,15 +321,33 @@ class GameSession:
         tiempo_actual = time.time(); anim_amplitud = 15; anim_frecuencia = 5
         if self.game_options["num_jugadores"] == 1:
             for letra in self.letras_en_pantalla:
-                icon_surface = self.main.spawner_icons[letra['icon_type']]
-                icon_rect = icon_surface.get_rect(center=(letra['icon_x'], letra['icon_y']))
-                self.pantalla.blit(icon_surface, icon_rect)
+                
+                pos_letra_x = letra['x']
+                pos_letra_y = letra['y']
+                
+                if letra.get('has_icon', False):
+                    icon_surface = self.main.spawner_icons[letra['icon_type']]
+                    
+                    if letra['icon_type'] == 'icono_lateral' and letra['vx'] < 0:
+                        icon_surface = pygame.transform.flip(icon_surface, True, False)
+                    
+                    icon_rect = icon_surface.get_rect(center=(letra['x'], letra['y']))
+                    
+                    distancia_remolque = 20
+                    if letra['icon_type'] == 'avion':
+                        pos_letra_y = icon_rect.bottom + distancia_remolque
+                    else: # icono_lateral
+                        if letra['vx'] > 0:
+                           pos_letra_x = icon_rect.left - distancia_remolque
+                        else:
+                           pos_letra_x = icon_rect.right + distancia_remolque
+                    
+                    self.pantalla.blit(icon_surface, icon_rect)
 
+                desplazamiento_x_sin = math.sin(tiempo_actual * anim_frecuencia + letra['anim_offset']) * anim_amplitud
                 letra_surf, letra_rect = self.fuente_letras.render(letra["char"], letra["color"])
-                letra_rect.center = (letra['letter_x'], letra['letter_y'])
+                letra_rect.center = (pos_letra_x + desplazamiento_x_sin, pos_letra_y)
                 self.pantalla.blit(letra_surf, letra_rect)
-
-                pygame.draw.line(self.pantalla, self.main.GRIS_CLARO, icon_rect.center, letra_rect.center, 2)
 
         else:
             desplazamiento_x_sin = math.sin(tiempo_actual * anim_frecuencia) * anim_amplitud
@@ -354,12 +364,25 @@ class GameSession:
         pygame.display.flip()
 
     def _draw_hud(self):
-        p1_color = self.config["color"] if self.game_options["num_jugadores"] == 1 else self.jugadores['J1']['color']
-        self.fuente_ui.render_to(self.pantalla, (10, 10), f"J1: {self.player_managers['J1'].get_score()} (Fallos: {self.player_managers['J1'].get_fallos()})", p1_color)
         if self.game_options["num_jugadores"] == 2:
-            self.fuente_ui.render_to(self.pantalla, (self.main.ANCHO//2+10, 10), f"J2: {self.player_managers['J2'].get_score()} (Fallos: {self.player_managers['J2'].get_fallos()})", self.jugadores['J2']['color'])
-            pygame.draw.circle(self.pantalla, self.jugadores[self.current_turn_player]['color'], (self.main.ANCHO//4 if self.current_turn_player=='J1' else 3*self.main.ANCHO//4, 50), 10)
-        
+            p1_color = self.jugadores['J1']['color']
+            p2_color = self.jugadores['J2']['color']
+
+            texto_j1 = f"M. Izquierda: {self.player_managers['J1'].get_score()} (Fallos: {self.player_managers['J1'].get_fallos()})"
+            surf_j1, rect_j1 = self.fuente_ui.render(texto_j1, p1_color)
+            rect_j1.center = (self.main.ANCHO // 4, 25)
+            self.pantalla.blit(surf_j1, rect_j1)
+
+            texto_j2 = f"M. Derecha: {self.player_managers['J2'].get_score()} (Fallos: {self.player_managers['J2'].get_fallos()})"
+            surf_j2, rect_j2 = self.fuente_ui.render(texto_j2, p2_color)
+            rect_j2.center = (self.main.ANCHO * 3 // 4, 25)
+            self.pantalla.blit(surf_j2, rect_j2)
+            
+            pygame.draw.circle(self.pantalla, self.jugadores[self.current_turn_player]['color'], (self.main.ANCHO//4 if self.current_turn_player=='J1' else 3*self.main.ANCHO//4, 60), 10)
+        else:
+            p1_color = self.config["color"]
+            self.fuente_ui.render_to(self.pantalla, (10, 10), f"Puntaje: {self.player_managers['J1'].get_score()} (Fallos: {self.player_managers['J1'].get_fallos()})", p1_color)
+
         if self.game_options["time_limit_seconds"] > 0:
             tiempo_restante = max(0, self.game_options["time_limit_seconds"]-int(self.tiempo_transcurrido))
             minutos, segundos = divmod(int(tiempo_restante), 60)
@@ -387,13 +410,13 @@ class GameSession:
         letras_a_proteger = []
         if self.game_options["num_jugadores"] == 1:
             if self.letras_en_pantalla:
-                letra_mas_cercana = min(self.letras_en_pantalla, key=lambda l: (self.main.ALTO - l['icon_y']) if l.get('icon_vx', 0) == 0 else (self.main.ANCHO - l['icon_x'] if l.get('icon_vx', 0) > 0 else l['icon_x']))
+                letra_mas_cercana = min(self.letras_en_pantalla, key=lambda l: (self.main.ALTO - l['y']) if l.get('vx', 0) == 0 else (self.main.ANCHO - l['x'] if l.get('vx', 0) > 0 else l['x']))
                 letras_a_proteger.append(letra_mas_cercana)
         else:
             letras_a_proteger.append({'char': self.active_letter, 'x': self.active_letter_x, 'y': self.active_letter_y})
 
         for letra in letras_a_proteger:
-            pos_x, pos_y = letra.get('letter_x', letra.get('x')), letra.get('letter_y', letra.get('y'))
+            pos_x, pos_y = letra.get('x'), letra.get('y')
             letra_rect = self.fuente_letras.get_rect(letra['char']); letra_rect.center = (pos_x, pos_y)
             radio_circulo = self.config["tam"]//2 + 10
             if self.powerup_manager.esta_activo("escudo"):

@@ -266,11 +266,8 @@ def pantalla_configuracion(config):
         pygame.display.flip(); clock.tick(60)
 
 def pantalla_menu_principal():
-    # --- LÍNEA AÑADIDA ---
-    # Asegúrate de que la música esté sonando cuando estemos en el menú principal
     if music_loaded and not pygame.mixer.music.get_busy():
         pygame.mixer.music.play(-1)
-    # ---------------------
 
     btn_y_start, btn_spacing = ALTO // 2 - 50, 80
     fuente_opciones = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 30)
@@ -279,7 +276,10 @@ def pantalla_menu_principal():
     btn_cargar = Button(ANCHO//2-140, btn_y_start + 2 * btn_spacing, 280, 60, "CARGAR PARTIDA", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
     btn_config = Button(ANCHO//2-140, btn_y_start + 3 * btn_spacing, 280, 60, "CONFIGURACIÓN", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
     btn_salir = Button(ANCHO//2-140, btn_y_start + 4 * btn_spacing, 280, 60, "SALIR", fuente_opciones, GRIS_OSCURO, GRIS_CLARO)
-    botones = [btn_modos_juego, btn_puntuaciones, btn_cargar, btn_config, btn_salir]
+    
+    btn_instrucciones = Button(ANCHO - 220, ALTO - 70, 200, 50, "Instrucciones", pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 20), GRIS_OSCURO, GRIS_CLARO)
+    
+    botones = [btn_modos_juego, btn_puntuaciones, btn_cargar, btn_config, btn_salir, btn_instrucciones]
     for btn in botones: btn.set_logo_style(True)
     logo_img = None
     try: logo_img = pygame.image.load(os.path.join(os.path.dirname(__file__), "remove.png")).convert_alpha()
@@ -291,6 +291,7 @@ def pantalla_menu_principal():
             if btn_puntuaciones.handle_event(evento): return "highscores"
             if btn_cargar.handle_event(evento): return "cargar_partida"
             if btn_config.handle_event(evento): return "configuracion"
+            if btn_instrucciones.handle_event(evento): return "instrucciones"
             if btn_salir.handle_event(evento) or (evento.type == pygame.KEYDOWN and evento.key == pygame.K_ESCAPE):
                 if confirmar_salida(): pygame.quit(); sys.exit()
         pantalla.blit(fondo_img, (0, 0)); dibujar_estrellas(0.5)
@@ -306,7 +307,7 @@ def pantalla_menu_principal():
 def pantalla_seleccion_modo_juego():
     fuente_opciones = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 30)
     btn_arcane = Button(ANCHO//2-150, ALTO//2-100, 300, 70, "MODO ARCANE (1P)", fuente_opciones, GRIS_OSCURO, GRIS_CLARO); btn_arcane.set_logo_style(True)
-    btn_versus = Button(ANCHO//2-150, ALTO//2-10, 300, 70, "MODO VERSUS (2P)", fuente_opciones, GRIS_OSCURO, GRIS_CLARO); btn_versus.set_logo_style(True)
+    btn_versus = Button(ANCHO//2-250, ALTO//2-10, 500, 70, "MANO IZQUIERDA VRS MANO DERECHA", fuente_opciones, GRIS_OSCURO, GRIS_CLARO); btn_versus.set_logo_style(True)
     btn_volver = Button(ANCHO//2-150, ALTO//2+150, 300, 70, "VOLVER", fuente_opciones, GRIS_OSCURO, GRIS_CLARO); btn_volver.set_logo_style(True)
     while True:
         for evento in pygame.event.get():
@@ -417,9 +418,11 @@ def pantalla_fin_juego(score, aciertos, fallos, num_jugadores, scores_j1=None, s
         fuente_resultado_titulo = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 60)
         fuente_resultado_texto = pygame.freetype.SysFont("arial", 40)
         fuente_botones = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 30)
-        if scores_j1 > scores_j2: ganador, color_ganador = "JUGADOR 1", VERDE
-        elif scores_j2 > scores_j1: ganador, color_ganador = "JUGADOR 2", AMARILLO
+        
+        if scores_j1 > scores_j2: ganador, color_ganador = "MANO IZQUIERDA", VERDE
+        elif scores_j2 > scores_j1: ganador, color_ganador = "MANO DERECHA", AMARILLO
         else: ganador, color_ganador = "EMPATE", BLANCO
+        
         btn_reiniciar = Button(ANCHO//2-160, ALTO-160, 150, 60, "REINICIAR", fuente_botones, GRIS_OSCURO, GRIS_CLARO); btn_reiniciar.set_logo_style(True)
         btn_menu = Button(ANCHO//2+10, ALTO-160, 150, 60, "MENÚ", fuente_botones, GRIS_OSCURO, GRIS_CLARO); btn_menu.set_logo_style(True)
         while True:
@@ -429,9 +432,10 @@ def pantalla_fin_juego(score, aciertos, fallos, num_jugadores, scores_j1=None, s
                 if btn_menu.handle_event(evento) or (evento.type == pygame.KEYDOWN and evento.key == pygame.K_ESCAPE): return "menu_principal"
             pantalla.blit(fondo_img, (0, 0)); dibujar_estrellas()
             render_text_gradient(fuente_resultado_titulo, "RESULTADOS FINALES", pygame.Rect(0, 100, ANCHO, 80), pantalla, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 4)
-            surf_j1, _ = fuente_resultado_texto.render(f"JUGADOR 1: {scores_j1} pts", VERDE); pantalla.blit(surf_j1, (ANCHO//4 - surf_j1.get_width()//2, 200))
-            surf_j2, _ = fuente_resultado_texto.render(f"JUGADOR 2: {scores_j2} pts", AMARILLO); pantalla.blit(surf_j2, (3 * ANCHO//4 - surf_j2.get_width()//2, 200))
-            if ganador != "EMPATE": pygame.draw.rect(pantalla, color_ganador, pygame.Rect((ANCHO//4 if ganador == "JUGADOR 1" else 3*ANCHO//4) - 160, 190, 320, 60), 4, border_radius=10)
+            
+            surf_j1, _ = fuente_resultado_texto.render(f"MANO IZQUIERDA: {scores_j1} pts", VERDE); pantalla.blit(surf_j1, (ANCHO//4 - surf_j1.get_width()//2, 200))
+            surf_j2, _ = fuente_resultado_texto.render(f"MANO DERECHA: {scores_j2} pts", AMARILLO); pantalla.blit(surf_j2, (3 * ANCHO//4 - surf_j2.get_width()//2, 200))
+            
             fuente_ganador = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 50)
             render_text_gradient(fuente_ganador, f"GANADOR: {ganador}", pygame.Rect(0, 320, ANCHO, 80), pantalla, [color_ganador, BLANCO], COLOR_CONTORNO, 3)
             btn_reiniciar.draw(pantalla); btn_menu.draw(pantalla)
@@ -534,6 +538,74 @@ def pantalla_seleccionar_partida(saved_games):
         btn_volver.draw(pantalla)
         pygame.display.flip(); clock.tick(60)
 
+# --- NUEVA PANTALLA DE INSTRUCCIONES ---
+def pantalla_instrucciones():
+    fuente_titulo = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 60)
+    fuente_subtitulo = pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 35)
+    fuente_texto = pygame.freetype.SysFont("arial", 24)
+    btn_volver = Button(ANCHO//2 - 150, ALTO - 100, 300, 70, "VOLVER", pygame.freetype.SysFont(FUENTE_LOGO_STYLE, 30), GRIS_OSCURO, GRIS_CLARO)
+    btn_volver.set_logo_style(True)
+
+    # --- Contenido dividido en dos columnas ---
+    instrucciones_col1 = [
+        ("MODO ARCANE", fuente_subtitulo, AMARILLO),
+        ("- Consigue la mayor puntuación posible.", fuente_texto, BLANCO),
+        ("- Tienes un límite de fallos.", fuente_texto, BLANCO),
+        ("- La velocidad aumenta con los niveles.", fuente_texto, BLANCO),
+        ("- ¡Cuidado con las letras laterales!", fuente_texto, BLANCO),
+        ("", fuente_texto, BLANCO),
+        ("POWER-UPS", fuente_subtitulo, AMARILLO),
+        ("- Caracol: Ralentiza las letras.", fuente_texto, BLANCO),
+        ("- Escudo: Te protege de un fallo.", fuente_texto, BLANCO),
+        ("- x2: Duplica tu puntuación.", fuente_texto, BLANCO),
+    ]
+
+    instrucciones_col2 = [
+        ("MANO IZQUIERDA vs MANO DERECHA", fuente_subtitulo, AMARILLO),
+        ("- Compite contra un amigo.", fuente_texto, BLANCO),
+        ("- Izquierda usa teclas Q, W, E, R, T...", fuente_texto, VERDE),
+        ("- Derecha usa teclas Y, U, I, O, P...", fuente_texto, AMARILLO),
+        ("- Teclea la letra en tu lado.", fuente_texto, BLANCO),
+        ("- Si fallas, cedes el turno.", fuente_texto, BLANCO),
+        ("- Gana el mejor al final del tiempo.", fuente_texto, BLANCO),
+    ]
+
+    while True:
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT: pygame.quit(); sys.exit()
+            if btn_volver.handle_event(evento) or (evento.type == pygame.KEYDOWN and evento.key == pygame.K_ESCAPE):
+                return
+
+        pantalla.blit(fondo_img, (0, 0)); dibujar_estrellas(0.5)
+        
+        render_text_gradient(fuente_titulo, "INSTRUCCIONES", pygame.Rect(0, 80, ANCHO, 80), pantalla, [COLOR_GRADIENTE_TOP, COLOR_GRADIENTE_BOTTOM], COLOR_CONTORNO, 4)
+
+        # --- Lógica de dibujado en dos columnas ---
+        y_offset = 200
+        # Columna 1
+        for texto, fuente, color in instrucciones_col1:
+            if texto:
+                surf, rect = fuente.render(texto, color)
+                rect.centerx = ANCHO // 4
+                rect.top = y_offset
+                pantalla.blit(surf, rect)
+            y_offset += 40
+        
+        # Columna 2
+        y_offset = 200 # Reiniciar altura para la segunda columna
+        for texto, fuente, color in instrucciones_col2:
+            if texto:
+                surf, rect = fuente.render(texto, color)
+                rect.centerx = ANCHO * 3 // 4
+                rect.top = y_offset
+                pantalla.blit(surf, rect)
+            y_offset += 40
+
+        btn_volver.draw(pantalla)
+        pygame.display.flip()
+        clock.tick(60)
+
+
 # ========================
 # EJECUCIÓN PRINCIPAL
 # ========================
@@ -559,11 +631,17 @@ if __name__ == '__main__':
             elif modo_seleccionado == "versus":
                 time_limit_minutes = pantalla_configuracion_versus()
                 if time_limit_minutes != "volver_seleccion_modo": game_options = {"num_jugadores": 2, "initial_speed": 2.0, "count_wrong_key_faults": True, "time_limit_seconds": time_limit_minutes * 60, "fallos_limit": 999}
-        elif accion == "highscores": pantalla_highscores(); continue
+        elif accion == "highscores": 
+            pantalla_highscores()
+            continue
         elif accion == "configuracion":
             nombre_fuente, tam, color = pantalla_configuracion(config)
             config = {"fuente": nombre_fuente, "tam": tam, "color": color}
-            guardar_config(nombre_fuente, tam, color); continue
+            guardar_config(nombre_fuente, tam, color)
+            continue
+        elif accion == "instrucciones":
+            pantalla_instrucciones()
+            continue
         elif accion == "cargar_partida":
             while True:
                 saved_games_list = cargar_partida()
